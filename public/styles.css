@@ -345,6 +345,47 @@ body {
   align-items: center;
 }
 
+.pdf-bar {
+  width: min(760px, 100%);
+  display: flex;
+  justify-content: center;
+  animation: rise 0.3s ease both;
+}
+
+.pdf-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: var(--radius-buttons);
+  background: var(--color-obsidian);
+  color: var(--color-snow);
+  padding: 12px 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.15s ease;
+}
+
+.pdf-cta:hover:not(:disabled) {
+  background: var(--color-graphite);
+}
+
+.pdf-cta:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.icon-btn.is-ready {
+  color: var(--color-obsidian);
+}
+
+.icon-btn.is-ready .icon-wrap {
+  color: var(--color-obsidian);
+}
+
 .composer {
   width: min(760px, 100%);
   display: grid;
@@ -458,6 +499,7 @@ textarea::placeholder {
   .meta-block,
   .typing,
   .composer,
+  .pdf-bar,
   .error {
     width: calc(100% - 28px);
   }

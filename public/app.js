@@ -5,6 +5,8 @@ const form = document.getElementById('chat-form');
 const input = document.getElementById('message');
 const sendBtn = document.getElementById('send-btn');
 const pdfBtn = document.getElementById('pdf-btn');
+const pdfCta = document.getElementById('pdf-cta');
+const pdfBar = document.getElementById('pdf-bar');
 const clearBtn = document.getElementById('clear-btn');
 const typingEl = document.getElementById('typing');
 const typingLabel = document.getElementById('typing-label');
@@ -21,12 +23,21 @@ function showError(message) {
   errorEl.textContent = message || '';
 }
 
+function setPdfEnabled(enabled) {
+  const on = Boolean(enabled);
+  pdfBtn.disabled = !on;
+  pdfCta.disabled = !on;
+  pdfBar.hidden = !hasAssistant;
+  pdfBtn.classList.toggle('is-ready', hasAssistant && on);
+  pdfCta.classList.toggle('is-busy', busy);
+}
+
 function setBusy(state) {
   busy = state;
   sendBtn.disabled = state;
   input.disabled = state;
   typingEl.hidden = !state;
-  pdfBtn.disabled = state || !hasAssistant;
+  setPdfEnabled(!state && hasAssistant);
 }
 
 function scrollToBottom() {
@@ -104,8 +115,7 @@ function addMeta({ sources, warnings }) {
 }
 
 function updatePdfVisibility() {
-  pdfBtn.hidden = !hasAssistant;
-  pdfBtn.disabled = busy || !hasAssistant;
+  setPdfEnabled(!busy && hasAssistant);
 }
 
 function resetChatView() {
@@ -287,11 +297,13 @@ clearBtn.addEventListener('click', async () => {
   await clearSession();
 });
 
-pdfBtn.addEventListener('click', async () => {
+async function downloadPdf() {
   if (!sessionId || busy || !hasAssistant) return;
   showError('');
   setBusy(true);
-  pdfBtn.title = 'Формируем документ…';
+  const ctaLabel = pdfCta.querySelector('span');
+  const prevLabel = ctaLabel?.textContent || 'Скачать PDF';
+  if (ctaLabel) ctaLabel.textContent = 'Формируем…';
 
   try {
     const response = await fetch('/api/chat/pdf', {
@@ -330,11 +342,14 @@ pdfBtn.addEventListener('click', async () => {
   } catch (err) {
     showError(userFacingError(err, 'Не удалось сформировать PDF'));
   } finally {
-    pdfBtn.title = 'Сформировать PDF';
+    if (ctaLabel) ctaLabel.textContent = prevLabel;
     setBusy(false);
     input.focus();
   }
-});
+}
+
+pdfBtn.addEventListener('click', downloadPdf);
+pdfCta.addEventListener('click', downloadPdf);
 
 resetChatView();
 growInput();
