@@ -219,7 +219,7 @@ function initDatepickers() {
   });
 }
 
-.initSelects();
+initSelects();
 initDatepickers();
 initAutoGrowTextareas();
 
