@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Тестовая претензия — Neo-Lex</title>
+  <style>
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.45;
+      color: #111;
+    }
+    h1 {
+      font-size: 16pt;
+      text-align: center;
+      margin: 0 0 24px;
+    }
+    h2 {
+      font-size: 12pt;
+      margin: 20px 0 8px;
+    }
+    .meta {
+      margin-bottom: 16px;
+    }
+    .meta p {
+      margin: 4px 0;
+    }
+    .banner {
+      border: 1px solid #8a6d3b;
+      background: #fcf8e3;
+      padding: 10px 12px;
+      margin-bottom: 18px;
+    }
+    .box {
+      border: 1px solid #ccc;
+      padding: 10px 12px;
+      white-space: pre-wrap;
+    }
+    .muted {
+      color: #555;
+    }
+    .quote {
+      margin-top: 4px;
+      font-style: italic;
+      color: #333;
+    }
+    .src-title {
+      font-weight: bold;
+    }
+    .src-url {
+      word-break: break-all;
+      font-size: 10pt;
+      color: #333;
+    }
+    ol, ul {
+      margin: 8px 0;
+      padding-left: 22px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Тестовая претензия</h1>
+  {{REVIEW_BANNER}}
+
+  <div class="meta">
+    <p><strong>Маркетплейс:</strong> {{MARKETPLACE}}</p>
+    <p><strong>Пункт оферты:</strong> {{CLAUSE_NUMBER}}</p>
+    <p><strong>Дата проверки:</strong> {{CHECKED_AT}}</p>
+    <p><strong>Статус проверки:</strong> {{STATUS}}</p>
+    <p><strong>Поисковый провайдер:</strong> {{PROVIDER}}</p>
+  </div>
+
+  <h2>Описание ситуации</h2>
+  <div class="box">{{SITUATION}}</div>
+
+  <h2>Найденный текст пункта</h2>
+  <div class="box">{{CLAUSE_TEXT}}</div>
+
+  <h2>Предварительная позиция</h2>
+  <div class="box">{{PRELIMINARY}}</div>
+
+  <h2>Итоговая юридическая аргументация</h2>
+  <div class="box">{{ARGUMENTATION}}</div>
+
+  <h2>Требования</h2>
+  {{DEMANDS}}
+
+  <h2>Источники</h2>
+  {{SOURCES}}
+
+  <h2>Предупреждения</h2>
+  {{WARNINGS}}
+</body>
+</html>

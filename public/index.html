@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Neo-Lex</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css?v=14" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <div class="header-top">
+        <span class="badge badge-ember">Прототип</span>
+        <span class="badge">LegalTech</span>
+      </div>
+      <h1>Neo-Lex</h1>
+      <p class="subtitle">
+        <span class="pipeline-legend">
+          <span class="badge"><img class="badge-img" src="/icons/claude.svg" alt="" />Claude</span>
+          <span class="legend-sep"></span>
+          <span class="badge"><img class="badge-img" src="/icons/gemini.svg" alt="" />Поиск</span>
+          <span class="legend-sep"></span>
+          <span class="badge"><img class="badge-img" src="/icons/claude.svg" alt="" />Claude QA</span>
+          <span class="legend-sep"></span>
+          <span class="badge"><img class="badge-img" src="/icons/pdf.svg" alt="" />PDF</span>
+        </span>
+      </p>
+    </header>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Входные данные</h2>
+        <p class="card-note">Один кейс. Без выдуманных текстов оферты.</p>
+      </div>
+      <form id="analyze-form">
+        <div class="grid">
+          <label class="field">
+            Маркетплейс
+            <div class="select" data-select>
+              <input type="hidden" id="marketplace" name="marketplace" value="Wildberries" required />
+              <button type="button" class="select-trigger" aria-haspopup="listbox" aria-expanded="false">
+                <span class="select-value">Wildberries</span>
+                <span class="select-chevron" aria-hidden="true"></span>
+              </button>
+              <ul class="select-menu" role="listbox" hidden>
+                <li role="option" data-value="Wildberries" aria-selected="true">Wildberries</li>
+                <li role="option" data-value="Ozon">Ozon</li>
+                <li role="option" data-value="Яндекс Маркет">Яндекс Маркет</li>
+                <li role="option" data-value="Avito">Avito</li>
+              </ul>
+            </div>
+          </label>
+          <label class="field">
+            Номер пункта оферты
+            <input id="clauseNumber" name="clauseNumber" type="text" maxlength="64" required placeholder="например, 8.3.1" />
+          </label>
+          <label class="field">
+            Дата проверки
+            <div class="datepicker" data-datepicker>
+              <input type="hidden" id="date" name="date" required />
+              <button type="button" class="datepicker-trigger" aria-haspopup="dialog" aria-expanded="false">
+                <span class="datepicker-value">Выберите дату</span>
+                <span class="datepicker-icon" aria-hidden="true"></span>
+              </button>
+              <div class="datepicker-panel" role="dialog" hidden>
+                <div class="datepicker-header">
+                  <button type="button" class="datepicker-nav" data-dp-prev aria-label="Предыдущий месяц">‹</button>
+                  <div class="datepicker-title" data-dp-title></div>
+                  <button type="button" class="datepicker-nav" data-dp-next aria-label="Следующий месяц">›</button>
+                </div>
+                <div class="datepicker-weekdays" aria-hidden="true">
+                  <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+                </div>
+                <div class="datepicker-grid" data-dp-grid></div>
+                <div class="datepicker-footer">
+                  <button type="button" class="datepicker-link" data-dp-clear>Очистить</button>
+                  <button type="button" class="datepicker-link" data-dp-today>Сегодня</button>
+                </div>
+              </div>
+            </div>
+          </label>
+        </div>
+        <label>
+          Описание штрафа или ситуации
+          <textarea id="penaltyDescription" name="penaltyDescription" rows="5" maxlength="4000" required placeholder="Кратко опишите штраф или спорную ситуацию"></textarea>
+        </label>
+        <div class="actions">
+          <button type="submit" id="analyze-btn" class="btn-primary">Запустить анализ</button>
+          <button type="button" id="pdf-btn" class="btn-neutral" disabled>
+            <img class="btn-img" src="/icons/pdf.svg" alt="" />
+            Скачать PDF
+          </button>
+        </div>
+      </form>
+      <p id="form-error" class="error" hidden></p>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Этапы пайплайна</h2>
+      </div>
+      <ul id="stages" class="stage-list">
+        <li class="is-waiting">
+          <span class="stage-label-wrap">
+            <span class="stage-label">Ожидание запуска</span>
+          </span>
+          <span class="stage-side">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="status-pill status-wait">Ожидание</span>
+          </span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Предварительная аргументация</h2>
+        <span class="badge">
+          <img class="badge-img" src="/icons/claude.svg" alt="" />
+          Claude
+        </span>
+      </div>
+      <div id="preliminary" class="soft-block empty">Появится после анализа</div>
+      <h3>Поисковый запрос</h3>
+      <div id="search-query" class="soft-block empty">Появится после анализа</div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Результат поиска</h2>
+        <span class="badge" id="search-provider-badge">
+          <img class="badge-img" src="/icons/gemini.svg" alt="" />
+          <span id="search-provider-label">Поиск</span>
+        </span>
+      </div>
+      <div class="meta-row">
+        <div><span class="label">Провайдер</span> <span id="search-provider" class="status-pill status-date">Ожидание</span></div>
+        <div>
+          <span class="label">Статус</span>
+          <span id="search-status" class="status-pill status-wait">Ожидание</span>
+          <p id="search-status-hint" class="status-hint muted" hidden></p>
+        </div>
+        <div><span class="label">Уверенность</span> <span id="search-confidence" class="status-pill status-wait">Ожидание</span></div>
+        <div><span class="label">Дата проверки</span> <span id="search-checked-at" class="status-pill status-wait">Ожидание</span></div>
+      </div>
+      <h3>Текст пункта</h3>
+      <div id="clause-text" class="soft-block empty">Появится после анализа</div>
+      <h3>Интерпретация</h3>
+      <div id="search-summary" class="soft-block empty">Появится после анализа</div>
+      <h3>Источники</h3>
+      <div id="sources" class="sources">
+        <p class="muted">Источники появятся после поиска</p>
+      </div>
+      <h3>Предупреждения</h3>
+      <ul id="search-warnings" class="arrow-list"><li class="muted">Пока нет предупреждений</li></ul>
+    </section>
+
+    <section class="card card-dark final-card">
+      <div class="card-head">
+        <h2>Финальная аргументация</h2>
+        <span class="badge badge-filled">
+          <img class="badge-img badge-img-light" src="/icons/claude.svg" alt="" />
+          Claude QA
+        </span>
+      </div>
+
+      <div class="final-status-row">
+        <span class="label">Итоговый статус</span>
+        <span id="final-status" class="status-pill status-wait">Ожидание</span>
+      </div>
+      <p id="final-status-hint" class="status-hint muted" hidden></p>
+
+      <div id="final-position" class="soft-block soft-block-dark empty">Появится после финальной проверки</div>
+
+      <div class="final-columns">
+        <div class="final-col">
+          <h3>
+            <img class="section-icon section-icon-light" src="/icons/check.svg" alt="" />
+            Требования
+          </h3>
+          <ul id="demands" class="arrow-list arrow-list-dark"><li class="muted">Пока нет требований</li></ul>
+        </div>
+        <div class="final-col">
+          <h3>
+            <img class="section-icon section-icon-light" src="/icons/warning.svg" alt="" />
+            Предупреждения
+          </h3>
+          <ul id="final-warnings" class="arrow-list arrow-list-dark"><li class="muted">Пока нет предупреждений</li></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="/app.js?v=14"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "neo-lex",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LegalTech prototype: Claude + Polza/Perplexity Sonar search + PDF",
+  "main": "server/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "@google/genai": "^2.13.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "puppeteer": "^25.3.0"
+  }
+}
