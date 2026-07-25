@@ -15,8 +15,10 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
     "@google/genai": "^2.13.0",
+    "@sparticuz/chromium": "^149.0.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "puppeteer": "^25.3.0"
+    "puppeteer": "^25.3.0",
+    "puppeteer-core": "^25.3.0"
   }
 }

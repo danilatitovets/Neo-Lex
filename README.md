@@ -16,3 +16,8 @@
 Список переменных находится в `.env.example`.
 
 Для поиска через Polza достаточно указать `CLAUDE_API_KEY`, если `SEARCH_API_KEY` оставлен пустым.
+
+## Render
+
+На Render PDF использует `@sparticuz/chromium` (переменная `RENDER=true` задаётся платформой автоматически).
+Отдельно ставить Chrome не нужно.

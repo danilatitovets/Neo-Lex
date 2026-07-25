@@ -1,7 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import puppeteer from 'puppeteer';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const templatePath = path.join(__dirname, 'templates', 'claim.html');
@@ -90,20 +89,66 @@ export async function buildClaimHtml(data) {
     .replaceAll('{{REVIEW_BANNER}}', reviewBanner);
 }
 
+function useCloudChromium() {
+  return (
+    process.env.RENDER === 'true' ||
+    process.env.USE_CLOUD_CHROMIUM === '1' ||
+    Boolean(process.env.PUPPETEER_EXECUTABLE_PATH)
+  );
+}
+
+async function launchBrowser() {
+  const commonArgs = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-gpu',
+    '--font-render-hinting=none',
+  ];
+
+  async function launchCloud() {
+    const chromium = (await import('@sparticuz/chromium')).default;
+    const puppeteer = (await import('puppeteer-core')).default;
+    return puppeteer.launch({
+      args: [...chromium.args, ...commonArgs],
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+    });
+  }
+
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    const puppeteer = (await import('puppeteer-core')).default;
+    return puppeteer.launch({
+      headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+      args: commonArgs,
+    });
+  }
+
+  if (useCloudChromium()) {
+    return launchCloud();
+  }
+
+  try {
+    const puppeteer = (await import('puppeteer')).default;
+    return await puppeteer.launch({
+      headless: true,
+      args: commonArgs,
+    });
+  } catch (err) {
+    if (/Could not find Chrome|Chromium/i.test(String(err?.message || ''))) {
+      return launchCloud();
+    }
+    throw err;
+  }
+}
+
 export async function generatePdfBuffer(data) {
   const html = await buildClaimHtml(data);
   let browser;
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--font-render-hinting=none',
-      ],
-    });
+    browser = await launchBrowser();
     const page = await browser.newPage();
     page.setDefaultTimeout(90000);
     await page.setContent(html, {
@@ -118,6 +163,8 @@ export async function generatePdfBuffer(data) {
     await page.close().catch(() => {});
     return Buffer.from(pdf);
   } catch (err) {
+    const detail = String(err?.message || err || '').slice(0, 200);
+    console.error(`[neo-lex] PDF: ${detail}`);
     const error = new Error('Не удалось сформировать PDF');
     error.code = 'PDF';
     error.cause = err;
