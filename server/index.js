@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, '..', 'public');
 const app = express();
 
-app.use(express.json({ limit: '64kb' }));
+app.use(express.json({ limit: '512kb' }));
 app.use(express.static(publicDir));
 
 function clip(value, max) {

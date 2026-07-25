@@ -219,8 +219,20 @@ function initDatepickers() {
   });
 }
 
-initSelects();
+.initSelects();
 initDatepickers();
+initAutoGrowTextareas();
+
+function initAutoGrowTextareas() {
+  document.querySelectorAll('textarea').forEach((el) => {
+    const grow = () => {
+      el.style.height = 'auto';
+      el.style.height = `${Math.max(el.scrollHeight, 120)}px`;
+    };
+    el.addEventListener('input', grow);
+    grow();
+  });
+}
 
 function showError(message) {
   formError.hidden = !message;
@@ -269,6 +281,32 @@ function statusHint(status) {
     return 'NEEDS_REVIEW — требуется дополнительная проверка.';
   }
   return '';
+}
+
+function pickFinalText(final) {
+  const position = String(final?.finalPosition || '').trim();
+  const argumentation = String(final?.legalArgumentation || '').trim();
+  if (position && argumentation) {
+    if (position === argumentation || argumentation.includes(position)) {
+      return argumentation;
+    }
+    if (position.includes(argumentation)) return position;
+    return `${position}\n\n${argumentation}`;
+  }
+  return position || argumentation;
+}
+
+function uniqueStrings(items, max = 30) {
+  const seen = new Set();
+  const out = [];
+  for (const item of items || []) {
+    const text = String(item || '').trim();
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    out.push(text);
+    if (out.length >= max) break;
+  }
+  return out;
 }
 
 function setStatusHint(id, status) {
@@ -497,7 +535,7 @@ function renderResult(result) {
   setStatusHint('final-status-hint', final.status);
   setText(
     'final-position',
-    [final.finalPosition, final.legalArgumentation].filter(Boolean).join('\n\n'),
+    pickFinalText(final),
     EMPTY.finalBlock
   );
   renderList('demands', final.demands, EMPTY.demands);
@@ -577,16 +615,16 @@ pdfBtn.addEventListener('click', async () => {
     situation: input.penaltyDescription,
     clauseText: final.clauseText || search.clauseText || '',
     preliminaryPosition: lastResult.preliminary?.preliminaryPosition || '',
-    legalArgumentation: final.legalArgumentation || final.finalPosition || '',
-    demands: final.demands || [],
-    usedSources: final.usedSources || search.sources || [],
+    legalArgumentation: pickFinalText(final),
+    demands: (final.demands || []).slice(0, 20),
+    usedSources: (final.usedSources || search.sources || []).slice(0, 20),
     checkedAt: final.checkedAt || search.checkedAt || input.date,
     status: final.status || search.status || 'NEEDS_REVIEW',
     providerLabel: search.providerLabel || search.provider || '',
-    warnings: [
-      ...(search.warnings || []),
-      ...(final.warnings || []),
-    ].slice(0, 30),
+    warnings: uniqueStrings(
+      [...(search.warnings || []), ...(final.warnings || [])],
+      25
+    ),
   };
 
   try {
@@ -596,12 +634,25 @@ pdfBtn.addEventListener('click', async () => {
       body: JSON.stringify(payload),
     });
 
+    const contentType = response.headers.get('content-type') || '';
     if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || 'Не удалось сформировать PDF');
+      let message = 'Не удалось сформировать PDF';
+      if (contentType.includes('application/json')) {
+        const data = await response.json().catch(() => ({}));
+        if (data.error) message = data.error;
+      }
+      throw new Error(message);
+    }
+
+    if (!contentType.includes('application/pdf')) {
+      throw new Error('Не удалось сформировать PDF');
     }
 
     const blob = await response.blob();
+    if (!blob.size) {
+      throw new Error('Не удалось сформировать PDF');
+    }
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

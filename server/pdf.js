@@ -6,6 +6,8 @@ import puppeteer from 'puppeteer';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const templatePath = path.join(__dirname, 'templates', 'claim.html');
 
+let launchPromise = null;
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -53,7 +55,9 @@ export async function buildClaimHtml(data) {
     Array.isArray(data.warnings) && data.warnings.length
       ? data.warnings
       : status === 'NEEDS_REVIEW'
-        ? ['Источники не подтвердили точный текст указанного пункта. Требуется дополнительная проверка.']
+        ? [
+            'Источники не подтвердили точный текст указанного пункта. Требуется дополнительная проверка.',
+          ]
         : []
   );
 
@@ -88,23 +92,44 @@ export async function buildClaimHtml(data) {
     .replaceAll('{{REVIEW_BANNER}}', reviewBanner);
 }
 
+async function getBrowser() {
+  if (!launchPromise) {
+    launchPromise = puppeteer
+      .launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--font-render-hinting=none',
+        ],
+      })
+      .catch((err) => {
+        launchPromise = null;
+        throw err;
+      });
+  }
+  return launchPromise;
+}
+
 export async function generatePdfBuffer(data) {
   const html = await buildClaimHtml(data);
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  const browser = await getBrowser();
+  const page = await browser.newPage();
 
   try {
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    page.setDefaultTimeout(60000);
+    await page.setContent(html, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30000,
+    });
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '18mm', right: '14mm', bottom: '18mm', left: '14mm' },
+      margin: { top: '16mm', right: '12mm', bottom: '16mm', left: '12mm' },
     });
     return Buffer.from(pdf);
   } finally {
-    await browser.close();
+    await page.close().catch(() => {});
   }
 }
