@@ -302,8 +302,8 @@ async function downloadPdf() {
   showError('');
   setBusy(true);
   const ctaLabel = pdfCta.querySelector('span');
-  const prevLabel = ctaLabel?.textContent || 'Скачать PDF';
-  if (ctaLabel) ctaLabel.textContent = 'Формируем…';
+  const prevLabel = ctaLabel?.textContent || 'Сформировать PDF-документ на проверку';
+  if (ctaLabel) ctaLabel.textContent = 'Формируем документ…';
 
   try {
     const response = await fetch('/api/chat/pdf', {
