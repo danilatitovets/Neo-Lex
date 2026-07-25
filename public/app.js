@@ -4,19 +4,19 @@ const chatEl = document.getElementById('chat');
 const form = document.getElementById('chat-form');
 const input = document.getElementById('message');
 const sendBtn = document.getElementById('send-btn');
-const pdfBtn = document.getElementById('pdf-btn');
 const pdfCta = document.getElementById('pdf-cta');
-const pdfBar = document.getElementById('pdf-bar');
 const clearBtn = document.getElementById('clear-btn');
-const typingEl = document.getElementById('typing');
-const typingLabel = document.getElementById('typing-label');
 const errorEl = document.getElementById('form-error');
 
 const SESSION_KEY = 'neo-lex-session-id';
+const COMPOSER_MAX = 200;
+
 let sessionId = localStorage.getItem(SESSION_KEY) || '';
 let busy = false;
 let hasAssistant = false;
 let started = false;
+let typingTurnEl = null;
+let typingStatusEl = null;
 
 function showError(message) {
   errorEl.hidden = !message;
@@ -25,28 +25,52 @@ function showError(message) {
 
 function setPdfEnabled(enabled) {
   const on = Boolean(enabled);
-  pdfBtn.disabled = !on;
   pdfCta.disabled = !on;
-  pdfBar.hidden = !hasAssistant;
-  pdfBtn.classList.toggle('is-ready', hasAssistant && on);
-  pdfCta.classList.toggle('is-busy', busy);
+  pdfCta.hidden = !hasAssistant;
+}
+
+function ensureTypingTurn() {
+  if (typingTurnEl && chatEl.contains(typingTurnEl)) return;
+  typingTurnEl = document.createElement('div');
+  typingTurnEl.className = 'typing-turn';
+  typingTurnEl.setAttribute('aria-live', 'polite');
+  typingTurnEl.innerHTML =
+    '<div class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></div>' +
+    '<span class="typing-status"></span>';
+  typingStatusEl = typingTurnEl.querySelector('.typing-status');
+  chatEl.appendChild(typingTurnEl);
+}
+
+function setTyping(visible, status = '') {
+  if (!visible) {
+    typingTurnEl?.remove();
+    typingTurnEl = null;
+    typingStatusEl = null;
+    return;
+  }
+  ensureTypingTurn();
+  if (typingStatusEl) typingStatusEl.textContent = status || '';
+  scrollToBottom();
 }
 
 function setBusy(state) {
   busy = state;
   sendBtn.disabled = state;
   input.disabled = state;
-  typingEl.hidden = !state;
+  if (!state) setTyping(false);
   setPdfEnabled(!state && hasAssistant);
 }
 
 function scrollToBottom() {
-  chatEl.scrollTop = chatEl.scrollHeight;
+  requestAnimationFrame(() => {
+    chatEl.scrollTop = chatEl.scrollHeight;
+  });
 }
 
 function growInput() {
   input.style.height = 'auto';
-  input.style.height = `${Math.min(Math.max(input.scrollHeight, 24), 160)}px`;
+  const next = Math.min(Math.max(input.scrollHeight, 24), COMPOSER_MAX);
+  input.style.height = `${next}px`;
 }
 
 function setEmptyState(empty) {
@@ -56,24 +80,26 @@ function setEmptyState(empty) {
   chatEl.hidden = empty;
   if (empty) {
     chatEl.innerHTML = '';
+    typingTurnEl = null;
+    typingStatusEl = null;
   }
 }
 
 function addMessage(role, content) {
-  const row = document.createElement('div');
-  row.className = 'row';
+  const turn = document.createElement('article');
+  turn.className = `turn ${role}`;
 
-  const avatar = document.createElement('div');
-  avatar.className = `avatar ${role}`;
-  avatar.textContent = role === 'user' ? 'Вы' : 'N';
+  const roleEl = document.createElement('p');
+  roleEl.className = 'turn-role';
+  roleEl.textContent = role === 'user' ? 'Вы' : 'Neo-Lex';
 
   const message = document.createElement('div');
   message.className = `message ${role}`;
   message.textContent = content;
 
-  row.appendChild(avatar);
-  row.appendChild(message);
-  chatEl.appendChild(row);
+  turn.appendChild(roleEl);
+  turn.appendChild(message);
+  chatEl.appendChild(turn);
   scrollToBottom();
   return message;
 }
@@ -159,17 +185,17 @@ async function clearSession() {
 async function sendMessage(text) {
   showError('');
   setBusy(true);
-  typingLabel.textContent = 'Юрист печатает…';
 
   if (!started) {
     setEmptyState(false);
   }
 
   addMessage('user', text);
+  setTyping(true);
   input.value = '';
   growInput();
 
-  const assistantEl = addMessage('assistant', '');
+  let assistantEl = null;
   let sources = [];
   let warnings = [];
 
@@ -226,10 +252,12 @@ async function sendMessage(text) {
           sessionId = data.sessionId;
           localStorage.setItem(SESSION_KEY, sessionId);
         } else if (eventName === 'status' && data.message) {
-          typingLabel.textContent = data.message;
-          typingEl.hidden = false;
+          setTyping(true, data.message);
         } else if (eventName === 'delta' && data.content) {
-          typingLabel.textContent = 'Юрист печатает…';
+          if (!assistantEl) {
+            setTyping(false);
+            assistantEl = addMessage('assistant', '');
+          }
           assistantEl.textContent += data.content;
           scrollToBottom();
         } else if (eventName === 'sources') {
@@ -245,16 +273,16 @@ async function sendMessage(text) {
       }
     }
 
-    if (!assistantEl.textContent.trim()) {
+    if (!assistantEl || !assistantEl.textContent.trim()) {
       throw new Error('Ответ модели не удалось обработать');
     }
 
     addMeta({ sources, warnings });
   } catch (err) {
-    if (!assistantEl.textContent.trim()) {
-      assistantEl.closest('.row')?.remove();
+    if (assistantEl && !assistantEl.textContent.trim()) {
+      assistantEl.closest('.turn')?.remove();
     }
-    if (!chatEl.querySelector('.row')) {
+    if (!chatEl.querySelector('.turn')) {
       setEmptyState(true);
     }
     if (/сессия завершилась/i.test(String(err.message || ''))) {
@@ -263,7 +291,6 @@ async function sendMessage(text) {
     }
     showError(userFacingError(err, 'Сервис консультации временно недоступен'));
   } finally {
-    typingLabel.textContent = 'Юрист печатает…';
     setBusy(false);
     input.focus();
   }
@@ -348,7 +375,6 @@ async function downloadPdf() {
   }
 }
 
-pdfBtn.addEventListener('click', downloadPdf);
 pdfCta.addEventListener('click', downloadPdf);
 
 resetChatView();
