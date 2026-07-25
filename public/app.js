@@ -1,3 +1,5 @@
+const shellEl = document.getElementById('shell');
+const heroEl = document.getElementById('hero');
 const chatEl = document.getElementById('chat');
 const form = document.getElementById('chat-form');
 const input = document.getElementById('message');
@@ -12,9 +14,7 @@ const SESSION_KEY = 'neo-lex-session-id';
 let sessionId = localStorage.getItem(SESSION_KEY) || '';
 let busy = false;
 let hasAssistant = false;
-
-const WELCOME =
-  'Здравствуйте. Я помогу разобрать спор с маркетплейсом: штрафы, удержания, поставки и претензии. Опишите ситуацию своими словами — что произошло и чего хотите добиться.';
+let started = false;
 
 function showError(message) {
   errorEl.hidden = !message;
@@ -36,6 +36,16 @@ function scrollToBottom() {
 function growInput() {
   input.style.height = 'auto';
   input.style.height = `${Math.min(Math.max(input.scrollHeight, 24), 160)}px`;
+}
+
+function setEmptyState(empty) {
+  started = !empty;
+  shellEl.classList.toggle('is-chatting', !empty);
+  heroEl.hidden = !empty;
+  chatEl.hidden = empty;
+  if (empty) {
+    chatEl.innerHTML = '';
+  }
 }
 
 function addMessage(role, content) {
@@ -99,8 +109,7 @@ function updatePdfVisibility() {
 }
 
 function resetChatView() {
-  chatEl.innerHTML = '';
-  addMessage('assistant', WELCOME);
+  setEmptyState(true);
   hasAssistant = false;
   updatePdfVisibility();
   showError('');
@@ -141,6 +150,11 @@ async function sendMessage(text) {
   showError('');
   setBusy(true);
   typingLabel.textContent = 'Юрист печатает…';
+
+  if (!started) {
+    setEmptyState(false);
+  }
+
   addMessage('user', text);
   input.value = '';
   growInput();
@@ -229,6 +243,9 @@ async function sendMessage(text) {
   } catch (err) {
     if (!assistantEl.textContent.trim()) {
       assistantEl.closest('.row')?.remove();
+    }
+    if (!chatEl.querySelector('.row')) {
+      setEmptyState(true);
     }
     if (/сессия завершилась/i.test(String(err.message || ''))) {
       sessionId = '';

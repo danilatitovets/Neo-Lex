@@ -6,14 +6,14 @@
   <title>Neo-Lex</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/styles.css?v=32" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css?v=33" />
 </head>
 <body>
-  <div class="shell">
+  <div class="shell" id="shell">
     <aside class="rail" aria-label="Действия">
       <button type="button" id="clear-btn" class="icon-btn" title="Новый диалог" aria-label="Очистить диалог">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
           <path d="M12 20h9" stroke-linecap="round" />
           <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke-linejoin="round" />
         </svg>
@@ -27,17 +27,15 @@
     </aside>
 
     <div class="main">
-      <header class="top">
-        <div class="brand-wrap">
-          <div class="brand-mark" aria-hidden="true">N</div>
-          <div>
-            <div class="brand">Neo-Lex</div>
-            <p class="tagline">Юридический помощник по спорам с маркетплейсами</p>
-          </div>
-        </div>
-      </header>
+      <div class="stage">
+        <section id="hero" class="hero" aria-label="Neo-Lex">
+          <div class="hero-mark" aria-hidden="true">N</div>
+          <h1 class="hero-title">Neo-Lex</h1>
+          <p class="hero-sub">Юридический помощник по спорам с маркетплейсами</p>
+        </section>
 
-      <main id="chat" class="chat" aria-live="polite"></main>
+        <main id="chat" class="chat" aria-live="polite" hidden></main>
+      </div>
 
       <div id="typing" class="typing" hidden>
         <span class="dot"></span>
@@ -49,6 +47,11 @@
       <footer class="dock">
         <p id="form-error" class="error" hidden></p>
         <form id="chat-form" class="composer">
+          <button type="button" class="composer-plus" aria-hidden="true" tabindex="-1">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 5v14M5 12h14" stroke-linecap="round" />
+            </svg>
+          </button>
           <textarea
             id="message"
             rows="1"
@@ -57,15 +60,15 @@
             required
           ></textarea>
           <button type="submit" id="send-btn" class="send" aria-label="Отправить">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M5 12h12M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M12 19V5M5 12l7-7 7 7" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </button>
         </form>
-        <p class="hint">PDF создаётся только по кнопке слева, после консультации</p>
+        <p class="hint">PDF — по кнопке слева после консультации</p>
       </footer>
     </div>
   </div>
-  <script src="/app.js?v=32"></script>
+  <script src="/app.js?v=33"></script>
 </body>
 </html>
