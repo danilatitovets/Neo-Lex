@@ -9,8 +9,13 @@ qa-*.json
 qa-*.pdf
 e2e-*.json
 e2e-*.pdf
+_bench/
+*.bench.json
+tmp/
+scripts/_bench*
 server/prompts/_extracted.txt
 server/prompts/_extract.py
+
 .DS_Store
 Thumbs.db
 *.log

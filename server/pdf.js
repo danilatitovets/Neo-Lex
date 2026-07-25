@@ -22,9 +22,9 @@ function text(value, fallback = '') {
 }
 
 function writeSection(doc, title, body) {
-  doc.moveDown(0.8);
+  doc.moveDown(0.7);
   doc.font(FONT_BOLD).fontSize(12).fillColor('#111111').text(title);
-  doc.moveDown(0.25);
+  doc.moveDown(0.2);
   doc.font(FONT_REGULAR).fontSize(11).fillColor('#222222').text(body || 'Нет данных', {
     width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
     lineGap: 2,
@@ -32,9 +32,9 @@ function writeSection(doc, title, body) {
 }
 
 function writeList(doc, title, items, emptyText) {
-  doc.moveDown(0.8);
+  doc.moveDown(0.7);
   doc.font(FONT_BOLD).fontSize(12).fillColor('#111111').text(title);
-  doc.moveDown(0.25);
+  doc.moveDown(0.2);
   doc.font(FONT_REGULAR).fontSize(11).fillColor('#222222');
   const list = Array.isArray(items) ? items.filter((item) => String(item || '').trim()) : [];
   if (!list.length) {
@@ -46,39 +46,23 @@ function writeList(doc, title, items, emptyText) {
       width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
       lineGap: 2,
     });
-    doc.moveDown(0.2);
+    doc.moveDown(0.15);
   }
 }
 
-export async function buildClaimHtml() {
-  return '';
-}
-
-export async function generatePdfBuffer(data) {
-  const status = data.status === 'VERIFIED' ? 'VERIFIED' : 'NEEDS_REVIEW';
+export async function generateConsultationPdf(data) {
+  const status = data.status === 'READY' ? 'READY' : 'NEEDS_REVIEW';
   const statusLabel =
-    status === 'VERIFIED'
-      ? 'VERIFIED — данные подтверждены источниками'
+    status === 'READY'
+      ? 'READY — документ можно использовать для проверки'
       : 'NEEDS_REVIEW — требуется дополнительная проверка';
-  const clauseText = text(
-    data.clauseText,
-    'Текст пункта не подтверждён источниками. Требуется дополнительная проверка.'
-  );
-  const warnings =
-    Array.isArray(data.warnings) && data.warnings.length
-      ? data.warnings
-      : status === 'NEEDS_REVIEW'
-        ? [
-            'Источники не подтвердили точный текст указанного пункта. Требуется дополнительная проверка.',
-          ]
-        : [];
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: 'A4',
       margin: 50,
       info: {
-        Title: 'Тестовая претензия — Neo-Lex',
+        Title: text(data.title, 'Итог консультации'),
         Author: 'Neo-Lex',
       },
     });
@@ -87,8 +71,10 @@ export async function generatePdfBuffer(data) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    doc.font(FONT_BOLD).fontSize(16).text('Тестовая претензия', { align: 'center' });
-    doc.moveDown(0.8);
+    doc.font(FONT_BOLD).fontSize(16).text(text(data.title, 'Итог консультации'), {
+      align: 'center',
+    });
+    doc.moveDown(0.6);
 
     if (status === 'NEEDS_REVIEW') {
       doc
@@ -96,67 +82,90 @@ export async function generatePdfBuffer(data) {
         .fontSize(10)
         .fillColor('#5c4b1f')
         .text(
-          'Документ требует дополнительной юридической проверки. Не используйте как финальную претензию без проверки юристом.'
+          text(
+            data.warning,
+            'Документ требует дополнительной юридической проверки. Не используйте как финальную претензию без проверки юристом.'
+          )
         );
-      doc.moveDown(0.6);
+      doc.moveDown(0.5);
       doc.fillColor('#111111');
     }
 
     doc.font(FONT_REGULAR).fontSize(11);
-    doc.text(`Маркетплейс: ${text(data.marketplace, '—')}`);
-    doc.text(`Пункт оферты: ${text(data.clauseNumber, '—')}`);
-    doc.text(`Дата проверки: ${text(data.checkedAt, '—')}`);
-    doc.text(`Статус проверки: ${statusLabel}`);
-    doc.text(
-      `Поисковый провайдер: ${text(data.providerLabel || data.provider, 'не указан')}`
-    );
+    doc.text(`Дата формирования: ${text(data.checkedAt, '—')}`);
+    doc.text(`Маркетплейс: ${text(data.marketplace, 'не указан')}`);
+    doc.text(`Статус: ${statusLabel}`);
 
     writeSection(doc, 'Описание ситуации', text(data.situation, 'Нет данных'));
-    writeSection(doc, 'Найденный текст пункта', clauseText);
+    writeList(doc, 'Установленные факты', data.facts, 'Факты не выделены');
     writeSection(
       doc,
-      'Предварительная позиция',
-      text(data.preliminaryPosition, 'Нет данных')
+      'Юридическая оценка',
+      text(data.legalAssessment, 'Оценка не сформирована')
     );
-    writeSection(
-      doc,
-      'Итоговая юридическая аргументация',
-      text(data.legalArgumentation || data.finalPosition, 'Нет данных')
-    );
-    writeList(doc, 'Требования', data.demands, 'Нет данных');
 
-    doc.moveDown(0.8);
-    doc.font(FONT_BOLD).fontSize(12).text('Источники');
-    doc.moveDown(0.25);
+    doc.moveDown(0.7);
+    doc.font(FONT_BOLD).fontSize(12).text('Юридические ориентиры');
+    doc.moveDown(0.2);
     doc.font(FONT_REGULAR).fontSize(11);
-    const sources = Array.isArray(data.usedSources || data.sources)
-      ? data.usedSources || data.sources
-      : [];
+    const refs = Array.isArray(data.legalReferences) ? data.legalReferences : [];
+    if (!refs.length) {
+      doc.text('Не указаны');
+    } else {
+      for (const ref of refs) {
+        const line = [ref.name, ref.article].filter(Boolean).join(' — ');
+        doc.text(`• ${line || 'ориентир'}`);
+        if (ref.url) {
+          doc.fillColor('#333333').text(ref.url, { link: ref.url, underline: true });
+          doc.fillColor('#222222');
+        }
+      }
+    }
+
+    writeList(doc, 'Рекомендации', data.recommendations, 'Нет данных');
+    writeList(doc, 'Возможные требования', data.demands, 'Нет данных');
+    writeList(doc, 'Недостающие данные', data.missingInformation, 'Не указаны');
+
+    doc.moveDown(0.7);
+    doc.font(FONT_BOLD).fontSize(12).text('Подтверждённые источники');
+    doc.moveDown(0.2);
+    doc.font(FONT_REGULAR).fontSize(11);
+    const sources = Array.isArray(data.sources) ? data.sources : [];
     if (!sources.length) {
-      doc.text('Источники не указаны.');
+      doc.text('Подтверждённые источники отсутствуют.');
     } else {
       sources.forEach((source, index) => {
-        const title = text(source?.title || source?.url, 'Источник');
-        const url = text(source?.url, '');
-        doc.text(`${index + 1}. ${title}`);
-        if (url) {
-          doc.fillColor('#333333').text(url, {
-            link: url,
-            underline: true,
-          });
+        doc.text(`${index + 1}. ${text(source.title || source.url, 'Источник')}`);
+        if (source.url) {
+          doc.fillColor('#333333').text(source.url, { link: source.url, underline: true });
           doc.fillColor('#222222');
         }
-        if (source?.quote) {
-          doc.font(FONT_REGULAR).fillColor('#444444').text(String(source.quote), {
-            italic: false,
-          });
-          doc.fillColor('#222222');
-        }
-        doc.moveDown(0.25);
+        doc.moveDown(0.15);
       });
     }
 
-    writeList(doc, 'Предупреждения', warnings, 'Нет данных');
+    if (data.warning) {
+      writeSection(doc, 'Предупреждение', data.warning);
+    }
+
     doc.end();
+  });
+}
+
+export async function generatePdfBuffer(data) {
+  return generateConsultationPdf({
+    title: 'Тестовая претензия',
+    marketplace: data.marketplace,
+    situation: data.situation,
+    facts: [],
+    legalAssessment: data.legalArgumentation || data.finalPosition || '',
+    legalReferences: [],
+    recommendations: [],
+    demands: data.demands || [],
+    missingInformation: [],
+    sources: data.usedSources || data.sources || [],
+    status: data.status === 'VERIFIED' ? 'READY' : 'NEEDS_REVIEW',
+    warning: '',
+    checkedAt: data.checkedAt,
   });
 }

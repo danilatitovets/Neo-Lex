@@ -1,22 +1,25 @@
 # Neo-Lex
 
-Тестовый прототип LegalTech-пайплайна: Claude Architect, поиск, Claude Final QA, HTML и PDF.
+Юридический чат-помощник по спорам с маркетплейсами.
 
-По умолчанию поиск выполняется через Polza с моделью Perplexity Sonar и возвратом источников. Позже можно переключить `SEARCH_PROVIDER=google` для использования Google Gemini Search Grounding.
+## Архитектура
+
+- Обычный диалог: один вызов модели чата через Polza, ответ потоком.
+- Поиск: Polza / Perplexity Sonar только если нужны актуальные правила, оферта или официальные источники.
+- PDF: формируется только по кнопке «Сформировать PDF-документ на проверку».
+- Сессии: in-memory на сервере. После перезапуска Render история сбрасывается.
 
 ## Запуск
 
-1. Скопируйте `.env.example` в `.env` и заполните необходимые переменные.
-2. Выполните `npm install`.
-3. Запустите приложение командой `npm start`.
-4. Откройте `http://localhost:3000`.
+1. Скопируйте `.env.example` в `.env` и заполните ключи.
+2. `npm install`
+3. `npm start`
+4. Откройте `http://localhost:3000`
 
-## Переменные окружения
+## Переменные
 
-Список переменных находится в `.env.example`.
+См. `.env.example`.
 
-Для поиска через Polza достаточно указать `CLAUDE_API_KEY`, если `SEARCH_API_KEY` оставлен пустым.
+Для Polza достаточно `CLAUDE_API_KEY`, если `CHAT_API_KEY`, `PDF_MODEL_API_KEY` и `SEARCH_API_KEY` пустые.
 
-## Render
-
-PDF формируется через `pdfkit` без Chrome — отдельная установка браузера не нужна.
+Позже можно добавить `SEARCH_PROVIDER=google` для Google Gemini Search Grounding.
