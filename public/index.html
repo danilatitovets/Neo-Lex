@@ -6,42 +6,66 @@
   <title>Neo-Lex</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/styles.css?v=30" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css?v=32" />
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div>
-        <div class="brand">Neo-Lex</div>
-        <p class="tagline">Юридический помощник по спорам с маркетплейсами</p>
-      </div>
-      <div class="top-actions">
-        <button type="button" id="clear-btn" class="btn-ghost">Очистить диалог</button>
-      </div>
-    </header>
-
-    <main id="chat" class="chat" aria-live="polite"></main>
-
-    <div id="typing" class="typing" hidden>Юрист печатает…</div>
-
-    <footer class="composer">
-      <p id="form-error" class="error" hidden></p>
-      <form id="chat-form" class="composer-row">
-        <textarea
-          id="message"
-          rows="1"
-          maxlength="4000"
-          placeholder="Опишите ситуацию обычным языком"
-          required
-        ></textarea>
-        <button type="submit" id="send-btn" class="btn-primary">Отправить</button>
-      </form>
-      <button type="button" id="pdf-btn" class="btn-pdf" hidden disabled>
-        Сформировать PDF-документ на проверку
+  <div class="shell">
+    <aside class="rail" aria-label="Действия">
+      <button type="button" id="clear-btn" class="icon-btn" title="Новый диалог" aria-label="Очистить диалог">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7">
+          <path d="M12 20h9" stroke-linecap="round" />
+          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke-linejoin="round" />
+        </svg>
       </button>
-    </footer>
+      <button type="button" id="pdf-btn" class="icon-btn" title="Сформировать PDF" aria-label="Сформировать PDF" hidden disabled>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" />
+          <path d="M14 3v5h5M8 13h8M8 17h6" stroke-linecap="round" />
+        </svg>
+      </button>
+    </aside>
+
+    <div class="main">
+      <header class="top">
+        <div class="brand-wrap">
+          <div class="brand-mark" aria-hidden="true">N</div>
+          <div>
+            <div class="brand">Neo-Lex</div>
+            <p class="tagline">Юридический помощник по спорам с маркетплейсами</p>
+          </div>
+        </div>
+      </header>
+
+      <main id="chat" class="chat" aria-live="polite"></main>
+
+      <div id="typing" class="typing" hidden>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span id="typing-label">Юрист печатает…</span>
+      </div>
+
+      <footer class="dock">
+        <p id="form-error" class="error" hidden></p>
+        <form id="chat-form" class="composer">
+          <textarea
+            id="message"
+            rows="1"
+            maxlength="4000"
+            placeholder="Опишите ситуацию"
+            required
+          ></textarea>
+          <button type="submit" id="send-btn" class="send" aria-label="Отправить">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h12M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </form>
+        <p class="hint">PDF создаётся только по кнопке слева, после консультации</p>
+      </footer>
+    </div>
   </div>
-  <script src="/app.js?v=30"></script>
+  <script src="/app.js?v=32"></script>
 </body>
 </html>

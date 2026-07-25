@@ -5,6 +5,7 @@ const sendBtn = document.getElementById('send-btn');
 const pdfBtn = document.getElementById('pdf-btn');
 const clearBtn = document.getElementById('clear-btn');
 const typingEl = document.getElementById('typing');
+const typingLabel = document.getElementById('typing-label');
 const errorEl = document.getElementById('form-error');
 
 const SESSION_KEY = 'neo-lex-session-id';
@@ -14,14 +15,6 @@ let hasAssistant = false;
 
 const WELCOME =
   'Здравствуйте. Я помогу разобрать спор с маркетплейсом: штрафы, удержания, поставки и претензии. Опишите ситуацию своими словами — что произошло и чего хотите добиться.';
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
 
 function showError(message) {
   errorEl.hidden = !message;
@@ -42,16 +35,26 @@ function scrollToBottom() {
 
 function growInput() {
   input.style.height = 'auto';
-  input.style.height = `${Math.min(Math.max(input.scrollHeight, 46), 180)}px`;
+  input.style.height = `${Math.min(Math.max(input.scrollHeight, 24), 160)}px`;
 }
 
-function addBubble(role, content) {
-  const el = document.createElement('div');
-  el.className = `bubble ${role}`;
-  el.textContent = content;
-  chatEl.appendChild(el);
+function addMessage(role, content) {
+  const row = document.createElement('div');
+  row.className = 'row';
+
+  const avatar = document.createElement('div');
+  avatar.className = `avatar ${role}`;
+  avatar.textContent = role === 'user' ? 'Вы' : 'N';
+
+  const message = document.createElement('div');
+  message.className = `message ${role}`;
+  message.textContent = content;
+
+  row.appendChild(avatar);
+  row.appendChild(message);
+  chatEl.appendChild(row);
   scrollToBottom();
-  return el;
+  return message;
 }
 
 function addMeta({ sources, warnings }) {
@@ -97,7 +100,7 @@ function updatePdfVisibility() {
 
 function resetChatView() {
   chatEl.innerHTML = '';
-  addBubble('assistant', WELCOME);
+  addMessage('assistant', WELCOME);
   hasAssistant = false;
   updatePdfVisibility();
   showError('');
@@ -137,11 +140,12 @@ async function clearSession() {
 async function sendMessage(text) {
   showError('');
   setBusy(true);
-  addBubble('user', text);
+  typingLabel.textContent = 'Юрист печатает…';
+  addMessage('user', text);
   input.value = '';
   growInput();
 
-  const assistantEl = addBubble('assistant', '');
+  const assistantEl = addMessage('assistant', '');
   let sources = [];
   let warnings = [];
 
@@ -198,10 +202,10 @@ async function sendMessage(text) {
           sessionId = data.sessionId;
           localStorage.setItem(SESSION_KEY, sessionId);
         } else if (eventName === 'status' && data.message) {
-          typingEl.textContent = data.message;
+          typingLabel.textContent = data.message;
           typingEl.hidden = false;
         } else if (eventName === 'delta' && data.content) {
-          typingEl.textContent = 'Юрист печатает…';
+          typingLabel.textContent = 'Юрист печатает…';
           assistantEl.textContent += data.content;
           scrollToBottom();
         } else if (eventName === 'sources') {
@@ -223,14 +227,16 @@ async function sendMessage(text) {
 
     addMeta({ sources, warnings });
   } catch (err) {
-    if (!assistantEl.textContent.trim()) assistantEl.remove();
+    if (!assistantEl.textContent.trim()) {
+      assistantEl.closest('.row')?.remove();
+    }
     if (/сессия завершилась/i.test(String(err.message || ''))) {
       sessionId = '';
       localStorage.removeItem(SESSION_KEY);
     }
     showError(userFacingError(err, 'Сервис консультации временно недоступен'));
   } finally {
-    typingEl.textContent = 'Юрист печатает…';
+    typingLabel.textContent = 'Юрист печатает…';
     setBusy(false);
     input.focus();
   }
@@ -268,7 +274,7 @@ pdfBtn.addEventListener('click', async () => {
   if (!sessionId || busy || !hasAssistant) return;
   showError('');
   setBusy(true);
-  pdfBtn.textContent = 'Формируем документ…';
+  pdfBtn.title = 'Формируем документ…';
 
   try {
     const response = await fetch('/api/chat/pdf', {
@@ -307,7 +313,7 @@ pdfBtn.addEventListener('click', async () => {
   } catch (err) {
     showError(userFacingError(err, 'Не удалось сформировать PDF'));
   } finally {
-    pdfBtn.textContent = 'Сформировать PDF-документ на проверку';
+    pdfBtn.title = 'Сформировать PDF';
     setBusy(false);
     input.focus();
   }
@@ -316,5 +322,3 @@ pdfBtn.addEventListener('click', async () => {
 resetChatView();
 growInput();
 input.focus();
-
-void escapeHtml;
