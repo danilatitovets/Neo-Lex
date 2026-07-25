@@ -1,177 +1,162 @@
-import fs from 'node:fs/promises';
+import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import PDFDocument from 'pdfkit';
 
+const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const templatePath = path.join(__dirname, 'templates', 'claim.html');
 
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+function resolveFont(name) {
+  const local = path.join(__dirname, 'fonts', name);
+  if (fs.existsSync(local)) return local;
+  return require.resolve(`dejavu-fonts-ttf/ttf/${name}`);
 }
 
-function listHtml(items) {
-  if (!Array.isArray(items) || items.length === 0) {
-    return '<p class="muted">Нет данных</p>';
+const FONT_REGULAR = resolveFont('DejaVuSans.ttf');
+const FONT_BOLD = resolveFont('DejaVuSans-Bold.ttf');
+
+function text(value, fallback = '') {
+  const raw = String(value ?? '').trim();
+  return raw || fallback;
+}
+
+function writeSection(doc, title, body) {
+  doc.moveDown(0.8);
+  doc.font(FONT_BOLD).fontSize(12).fillColor('#111111').text(title);
+  doc.moveDown(0.25);
+  doc.font(FONT_REGULAR).fontSize(11).fillColor('#222222').text(body || 'Нет данных', {
+    width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+    lineGap: 2,
+  });
+}
+
+function writeList(doc, title, items, emptyText) {
+  doc.moveDown(0.8);
+  doc.font(FONT_BOLD).fontSize(12).fillColor('#111111').text(title);
+  doc.moveDown(0.25);
+  doc.font(FONT_REGULAR).fontSize(11).fillColor('#222222');
+  const list = Array.isArray(items) ? items.filter((item) => String(item || '').trim()) : [];
+  if (!list.length) {
+    doc.text(emptyText);
+    return;
   }
-  return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
-}
-
-function sourcesHtml(sources) {
-  if (!Array.isArray(sources) || sources.length === 0) {
-    return '<p class="muted">Источники не указаны.</p>';
+  for (const item of list) {
+    doc.text(`• ${String(item).trim()}`, {
+      width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+      lineGap: 2,
+    });
+    doc.moveDown(0.2);
   }
-  return `<ol>${sources
-    .map((s) => {
-      const title = escapeHtml(s.title || s.url || 'Источник');
-      const url = escapeHtml(s.url || '');
-      const quote = s.quote
-        ? `<div class="quote">${escapeHtml(s.quote)}</div>`
-        : '';
-      return `<li><div class="src-title">${title}</div><div class="src-url">${url}</div>${quote}</li>`;
-    })
-    .join('')}</ol>`;
 }
 
-export async function buildClaimHtml(data) {
-  const template = await fs.readFile(templatePath, 'utf8');
+export async function buildClaimHtml() {
+  return '';
+}
+
+export async function generatePdfBuffer(data) {
   const status = data.status === 'VERIFIED' ? 'VERIFIED' : 'NEEDS_REVIEW';
   const statusLabel =
     status === 'VERIFIED'
       ? 'VERIFIED — данные подтверждены источниками'
       : 'NEEDS_REVIEW — требуется дополнительная проверка';
-  const reviewBanner =
-    status === 'NEEDS_REVIEW'
-      ? '<div class="banner">Документ требует дополнительной юридической проверки. Не используйте как финальную претензию без проверки юристом.</div>'
-      : '';
-  const warningsHtml = listHtml(
+  const clauseText = text(
+    data.clauseText,
+    'Текст пункта не подтверждён источниками. Требуется дополнительная проверка.'
+  );
+  const warnings =
     Array.isArray(data.warnings) && data.warnings.length
       ? data.warnings
       : status === 'NEEDS_REVIEW'
         ? [
             'Источники не подтвердили точный текст указанного пункта. Требуется дополнительная проверка.',
           ]
-        : []
-  );
+        : [];
 
-  return template
-    .replaceAll('{{MARKETPLACE}}', escapeHtml(data.marketplace))
-    .replaceAll('{{SITUATION}}', escapeHtml(data.situation))
-    .replaceAll('{{CLAUSE_NUMBER}}', escapeHtml(data.clauseNumber))
-    .replaceAll(
-      '{{CLAUSE_TEXT}}',
-      escapeHtml(
-        data.clauseText ||
-          'Текст пункта не подтверждён источниками. Требуется дополнительная проверка.'
-      )
-    )
-    .replaceAll(
-      '{{PRELIMINARY}}',
-      escapeHtml(data.preliminaryPosition || 'Нет данных')
-    )
-    .replaceAll(
-      '{{ARGUMENTATION}}',
-      escapeHtml(data.legalArgumentation || data.finalPosition || '')
-    )
-    .replaceAll('{{DEMANDS}}', listHtml(data.demands))
-    .replaceAll('{{SOURCES}}', sourcesHtml(data.usedSources || data.sources))
-    .replaceAll('{{WARNINGS}}', warningsHtml)
-    .replaceAll('{{CHECKED_AT}}', escapeHtml(data.checkedAt || ''))
-    .replaceAll('{{STATUS}}', escapeHtml(statusLabel))
-    .replaceAll(
-      '{{PROVIDER}}',
-      escapeHtml(data.providerLabel || data.provider || 'не указан')
-    )
-    .replaceAll('{{REVIEW_BANNER}}', reviewBanner);
-}
-
-function useCloudChromium() {
-  return (
-    process.env.RENDER === 'true' ||
-    process.env.USE_CLOUD_CHROMIUM === '1' ||
-    Boolean(process.env.PUPPETEER_EXECUTABLE_PATH)
-  );
-}
-
-async function launchBrowser() {
-  const commonArgs = [
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--disable-dev-shm-usage',
-    '--disable-gpu',
-    '--font-render-hinting=none',
-  ];
-
-  async function launchCloud() {
-    const chromium = (await import('@sparticuz/chromium')).default;
-    const puppeteer = (await import('puppeteer-core')).default;
-    return puppeteer.launch({
-      args: [...chromium.args, ...commonArgs],
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 50,
+      info: {
+        Title: 'Тестовая претензия — Neo-Lex',
+        Author: 'Neo-Lex',
+      },
     });
-  }
+    const chunks = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
 
-  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-    const puppeteer = (await import('puppeteer-core')).default;
-    return puppeteer.launch({
-      headless: true,
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-      args: commonArgs,
-    });
-  }
+    doc.font(FONT_BOLD).fontSize(16).text('Тестовая претензия', { align: 'center' });
+    doc.moveDown(0.8);
 
-  if (useCloudChromium()) {
-    return launchCloud();
-  }
-
-  try {
-    const puppeteer = (await import('puppeteer')).default;
-    return await puppeteer.launch({
-      headless: true,
-      args: commonArgs,
-    });
-  } catch (err) {
-    if (/Could not find Chrome|Chromium/i.test(String(err?.message || ''))) {
-      return launchCloud();
+    if (status === 'NEEDS_REVIEW') {
+      doc
+        .font(FONT_REGULAR)
+        .fontSize(10)
+        .fillColor('#5c4b1f')
+        .text(
+          'Документ требует дополнительной юридической проверки. Не используйте как финальную претензию без проверки юристом.'
+        );
+      doc.moveDown(0.6);
+      doc.fillColor('#111111');
     }
-    throw err;
-  }
-}
 
-export async function generatePdfBuffer(data) {
-  const html = await buildClaimHtml(data);
-  let browser;
-  try {
-    browser = await launchBrowser();
-    const page = await browser.newPage();
-    page.setDefaultTimeout(90000);
-    await page.setContent(html, {
-      waitUntil: 'domcontentloaded',
-      timeout: 60000,
-    });
-    const pdf = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '16mm', right: '12mm', bottom: '16mm', left: '12mm' },
-    });
-    await page.close().catch(() => {});
-    return Buffer.from(pdf);
-  } catch (err) {
-    const detail = String(err?.message || err || '').slice(0, 200);
-    console.error(`[neo-lex] PDF: ${detail}`);
-    const error = new Error('Не удалось сформировать PDF');
-    error.code = 'PDF';
-    error.cause = err;
-    throw error;
-  } finally {
-    if (browser) {
-      await browser.close().catch(() => {});
+    doc.font(FONT_REGULAR).fontSize(11);
+    doc.text(`Маркетплейс: ${text(data.marketplace, '—')}`);
+    doc.text(`Пункт оферты: ${text(data.clauseNumber, '—')}`);
+    doc.text(`Дата проверки: ${text(data.checkedAt, '—')}`);
+    doc.text(`Статус проверки: ${statusLabel}`);
+    doc.text(
+      `Поисковый провайдер: ${text(data.providerLabel || data.provider, 'не указан')}`
+    );
+
+    writeSection(doc, 'Описание ситуации', text(data.situation, 'Нет данных'));
+    writeSection(doc, 'Найденный текст пункта', clauseText);
+    writeSection(
+      doc,
+      'Предварительная позиция',
+      text(data.preliminaryPosition, 'Нет данных')
+    );
+    writeSection(
+      doc,
+      'Итоговая юридическая аргументация',
+      text(data.legalArgumentation || data.finalPosition, 'Нет данных')
+    );
+    writeList(doc, 'Требования', data.demands, 'Нет данных');
+
+    doc.moveDown(0.8);
+    doc.font(FONT_BOLD).fontSize(12).text('Источники');
+    doc.moveDown(0.25);
+    doc.font(FONT_REGULAR).fontSize(11);
+    const sources = Array.isArray(data.usedSources || data.sources)
+      ? data.usedSources || data.sources
+      : [];
+    if (!sources.length) {
+      doc.text('Источники не указаны.');
+    } else {
+      sources.forEach((source, index) => {
+        const title = text(source?.title || source?.url, 'Источник');
+        const url = text(source?.url, '');
+        doc.text(`${index + 1}. ${title}`);
+        if (url) {
+          doc.fillColor('#333333').text(url, {
+            link: url,
+            underline: true,
+          });
+          doc.fillColor('#222222');
+        }
+        if (source?.quote) {
+          doc.font(FONT_REGULAR).fillColor('#444444').text(String(source.quote), {
+            italic: false,
+          });
+          doc.fillColor('#222222');
+        }
+        doc.moveDown(0.25);
+      });
     }
-  }
+
+    writeList(doc, 'Предупреждения', warnings, 'Нет данных');
+    doc.end();
+  });
 }
