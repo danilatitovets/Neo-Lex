@@ -237,12 +237,46 @@ body {
 .message {
   margin: 0;
   min-width: 0;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
   font-size: var(--text-body);
   line-height: 1.65;
   color: var(--color-graphite);
+}
+
+.message.user {
+  white-space: pre-wrap;
+}
+
+.message.assistant p {
+  margin: 0 0 0.7em;
+}
+
+.message.assistant p:last-child {
+  margin-bottom: 0;
+}
+
+.message.assistant .msg-gap {
+  height: 0.55em;
+}
+
+.message.assistant ul,
+.message.assistant ol {
+  margin: 0.35em 0 0.8em;
+  padding-left: 1.25em;
+}
+
+.message.assistant li {
+  margin: 0.25em 0;
+}
+
+.message.assistant strong {
+  font-weight: 600;
+  color: var(--color-obsidian);
+}
+
+.message.assistant em {
+  font-style: italic;
 }
 
 .meta-block {

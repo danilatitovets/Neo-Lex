@@ -85,6 +85,80 @@ function setEmptyState(empty) {
   }
 }
 
+function escapeHtml(text) {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatAssistantHtml(raw) {
+  let text = escapeHtml(raw);
+
+  // fenced code leftovers
+  text = text.replace(/```[\s\S]*?```/g, (block) =>
+    block.replace(/```/g, '').trim()
+  );
+
+  // bold / italic markdown -> real emphasis
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
+  text = text.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+
+  // strip leftover heading markers
+  text = text.replace(/^#{1,6}\s+/gm, '');
+
+  const lines = text.split('\n');
+  const parts = [];
+  let listType = null;
+  let listItems = [];
+
+  const flushList = () => {
+    if (!listType) return;
+    const tag = listType;
+    parts.push(`<${tag}>${listItems.join('')}</${tag}>`);
+    listType = null;
+    listItems = [];
+  };
+
+  for (const line of lines) {
+    const bullet = line.match(/^\s*[-•]\s+(.+)$/);
+    const numbered = line.match(/^\s*\d+[.)]\s+(.+)$/);
+    if (bullet) {
+      if (listType && listType !== 'ul') flushList();
+      listType = 'ul';
+      listItems.push(`<li>${bullet[1]}</li>`);
+      continue;
+    }
+    if (numbered) {
+      if (listType && listType !== 'ol') flushList();
+      listType = 'ol';
+      listItems.push(`<li>${numbered[1]}</li>`);
+      continue;
+    }
+    flushList();
+    if (!line.trim()) {
+      parts.push('<div class="msg-gap"></div>');
+    } else {
+      parts.push(`<p>${line}</p>`);
+    }
+  }
+  flushList();
+
+  return parts.join('');
+}
+
+function setMessageContent(el, role, content, { asHtml = false } = {}) {
+  if (role === 'assistant' || asHtml) {
+    el.dataset.raw = content;
+    el.innerHTML = formatAssistantHtml(content);
+  } else {
+    el.textContent = content;
+  }
+}
+
 function addMessage(role, content) {
   const turn = document.createElement('article');
   turn.className = `turn ${role}`;
@@ -95,7 +169,7 @@ function addMessage(role, content) {
 
   const message = document.createElement('div');
   message.className = `message ${role}`;
-  message.textContent = content;
+  setMessageContent(message, role, content);
 
   turn.appendChild(roleEl);
   turn.appendChild(message);
@@ -257,8 +331,10 @@ async function sendMessage(text) {
           if (!assistantEl) {
             setTyping(false);
             assistantEl = addMessage('assistant', '');
+            assistantEl.dataset.raw = '';
           }
-          assistantEl.textContent += data.content;
+          assistantEl.dataset.raw = `${assistantEl.dataset.raw || ''}${data.content}`;
+          setMessageContent(assistantEl, 'assistant', assistantEl.dataset.raw);
           scrollToBottom();
         } else if (eventName === 'sources') {
           sources = data.sources || [];
@@ -273,13 +349,13 @@ async function sendMessage(text) {
       }
     }
 
-    if (!assistantEl || !assistantEl.textContent.trim()) {
+    if (!assistantEl || !String(assistantEl.dataset.raw || assistantEl.textContent || '').trim()) {
       throw new Error('Ответ модели не удалось обработать');
     }
 
     addMeta({ sources, warnings });
   } catch (err) {
-    if (assistantEl && !assistantEl.textContent.trim()) {
+    if (assistantEl && !String(assistantEl.dataset.raw || assistantEl.textContent || '').trim()) {
       assistantEl.closest('.turn')?.remove();
     }
     if (!chatEl.querySelector('.turn')) {
