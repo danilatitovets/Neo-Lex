@@ -223,16 +223,107 @@ initSelects();
 initDatepickers();
 initAutoGrowTextareas();
 
+const STATE_KEY = 'neo-lex-ui-state-v1';
+
+function readFormValues() {
+  return {
+    marketplace: document.getElementById('marketplace').value.trim(),
+    clauseNumber: document.getElementById('clauseNumber').value,
+    penaltyDescription: document.getElementById('penaltyDescription').value,
+    date: document.getElementById('date').value.trim(),
+  };
+}
+
+function setMarketplaceValue(value) {
+  const root = document.querySelector('[data-select]');
+  if (!root || !value) return;
+  const hidden = root.querySelector('input[type="hidden"]');
+  const valueEl = root.querySelector('.select-value');
+  const options = [...root.querySelectorAll('[role="option"]')];
+  const match = options.find((item) => item.dataset.value === value);
+  if (!match) return;
+  options.forEach((item) => item.setAttribute('aria-selected', 'false'));
+  match.setAttribute('aria-selected', 'true');
+  hidden.value = value;
+  valueEl.textContent = match.textContent;
+}
+
+function setDateValue(iso) {
+  const root = document.querySelector('[data-datepicker]');
+  if (!root) return;
+  const hidden = root.querySelector('input[type="hidden"]');
+  const valueEl = root.querySelector('.datepicker-value');
+  hidden.value = iso || '';
+  valueEl.textContent = formatDisplayDate(iso);
+  valueEl.classList.toggle('is-placeholder', !iso);
+}
+
+function growTextareas() {
+  document.querySelectorAll('textarea').forEach((el) => {
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(el.scrollHeight, 120)}px`;
+  });
+}
+
+function saveUiState() {
+  try {
+    sessionStorage.setItem(
+      STATE_KEY,
+      JSON.stringify({
+        form: readFormValues(),
+        result: lastResult,
+      })
+    );
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function restoreUiState() {
+  try {
+    const raw = sessionStorage.getItem(STATE_KEY);
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    const formState = state?.form || {};
+    if (formState.marketplace) setMarketplaceValue(formState.marketplace);
+    if (formState.clauseNumber != null) {
+      document.getElementById('clauseNumber').value = formState.clauseNumber;
+    }
+    if (formState.penaltyDescription != null) {
+      document.getElementById('penaltyDescription').value =
+        formState.penaltyDescription;
+    }
+    if (formState.date) setDateValue(formState.date);
+    growTextareas();
+    if (state?.result && typeof state.result === 'object') {
+      renderResult(state.result);
+    }
+  } catch {
+    /* ignore broken state */
+  }
+}
+
 function initAutoGrowTextareas() {
   document.querySelectorAll('textarea').forEach((el) => {
     const grow = () => {
       el.style.height = 'auto';
       el.style.height = `${Math.max(el.scrollHeight, 120)}px`;
     };
-    el.addEventListener('input', grow);
+    el.addEventListener('input', () => {
+      grow();
+      saveUiState();
+    });
     grow();
   });
 }
+
+document.getElementById('clauseNumber')?.addEventListener('input', saveUiState);
+document.querySelectorAll('[data-select] [role="option"]').forEach((option) => {
+  option.addEventListener('click', () => setTimeout(saveUiState, 0));
+});
+document.querySelectorAll('[data-datepicker]').forEach((root) => {
+  root.addEventListener('click', () => setTimeout(saveUiState, 0));
+});
 
 function showError(message) {
   formError.hidden = !message;
@@ -262,8 +353,13 @@ const EMPTY = {
   finalBlock: 'Появится после финальной проверки',
   status: 'Ожидание',
   sources: 'Источники не найдены',
+  sourcesWait: 'Источники появятся после поиска',
   warnings: 'Пока нет предупреждений',
   demands: 'Пока нет требований',
+  clauseMissing:
+    'Текст пункта не подтверждён источниками. Требуется дополнительная проверка.',
+  summaryMissing:
+    'Интерпретация недоступна: точный текст пункта оферты не найден.',
 };
 
 const LIMITS = {
@@ -523,12 +619,23 @@ function renderResult(result) {
     checkedEl.className = 'status-pill status-wait';
   }
 
-  setText('clause-text', search.clauseText);
-  setText('search-summary', search.summary);
-  renderSources(search.sources);
-  renderList('search-warnings', search.warnings, EMPTY.warnings);
-
   const final = result.final || {};
+
+  setText(
+    'clause-text',
+    search.clauseText || final.clauseText,
+    EMPTY.clauseMissing
+  );
+  setText('search-summary', search.summary, EMPTY.summaryMissing);
+  renderSources(search.sources);
+  renderList(
+    'search-warnings',
+    search.warnings,
+    search.status
+      ? 'Источники не подтвердили точный текст указанного пункта.'
+      : EMPTY.warnings
+  );
+
   const finalStatusEl = document.getElementById('final-status');
   finalStatusEl.textContent = final.status || EMPTY.status;
   finalStatusEl.className = statusClass(final.status);
@@ -536,19 +643,29 @@ function renderResult(result) {
   setText(
     'final-position',
     pickFinalText(final),
-    EMPTY.finalBlock
+    'Финальная позиция недоступна. Требуется дополнительная проверка.'
   );
-  renderList('demands', final.demands, EMPTY.demands);
-  renderList('final-warnings', final.warnings, EMPTY.warnings);
+  renderList(
+    'demands',
+    final.demands,
+    final.status ? 'Требования не сформированы.' : EMPTY.demands
+  );
+  renderList(
+    'final-warnings',
+    final.warnings,
+    final.status
+      ? 'Источники не подтвердили точный текст указанного пункта.'
+      : EMPTY.warnings
+  );
 
   pdfBtn.disabled = false;
+  saveUiState();
 }
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   showError('');
   pdfBtn.disabled = true;
-  lastResult = null;
 
   const payload = {
     marketplace: document.getElementById('marketplace').value.trim(),
@@ -562,9 +679,11 @@ form.addEventListener('submit', async (event) => {
   const validationError = validateFormPayload(payload);
   if (validationError) {
     showError(validationError);
+    if (lastResult) pdfBtn.disabled = false;
     return;
   }
 
+  saveUiState();
   analyzeBtn.disabled = true;
   renderStages([
     {
@@ -595,6 +714,7 @@ form.addEventListener('submit', async (event) => {
         'Сервис анализа временно недоступен. Попробуйте ещё раз позже'
       )
     );
+    if (lastResult) pdfBtn.disabled = false;
   } finally {
     analyzeBtn.disabled = false;
   }
@@ -634,25 +754,27 @@ pdfBtn.addEventListener('click', async () => {
       body: JSON.stringify(payload),
     });
 
-    const contentType = response.headers.get('content-type') || '';
-    if (!response.ok) {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const isPdf =
+      bytes.length > 4 &&
+      bytes[0] === 0x25 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x44 &&
+      bytes[3] === 0x46;
+
+    if (!response.ok || !isPdf) {
       let message = 'Не удалось сформировать PDF';
-      if (contentType.includes('application/json')) {
-        const data = await response.json().catch(() => ({}));
-        if (data.error) message = data.error;
+      try {
+        const text = new TextDecoder('utf-8').decode(bytes);
+        const data = JSON.parse(text);
+        if (data?.error) message = data.error;
+      } catch {
+        /* ignore */
       }
       throw new Error(message);
     }
 
-    if (!contentType.includes('application/pdf')) {
-      throw new Error('Не удалось сформировать PDF');
-    }
-
-    const blob = await response.blob();
-    if (!blob.size) {
-      throw new Error('Не удалось сформировать PDF');
-    }
-
+    const blob = new Blob([bytes], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -667,3 +789,5 @@ pdfBtn.addEventListener('click', async () => {
     pdfBtn.disabled = false;
   }
 });
+
+restoreUiState();

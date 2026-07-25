@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, '..', 'public');
 const app = express();
 
-app.use(express.json({ limit: '512kb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(publicDir));
 
 function clip(value, max) {
@@ -177,19 +177,19 @@ app.post('/api/generate-pdf', async (req, res) => {
   const clauseNumber = clip(body.clauseNumber, config.limits.clauseNumber);
   const situation = clip(
     body.situation || body.penaltyDescription,
-    config.limits.penaltyDescription
+    Math.max(config.limits.penaltyDescription, 20000)
   );
-  const clauseText = clip(body.clauseText, 8000);
+  const clauseText = clip(body.clauseText, 100000);
   const legalArgumentation = clip(
     body.legalArgumentation || body.finalPosition,
-    8000
+    100000
   );
-  const checkedAt = clip(body.checkedAt, 40);
+  const checkedAt = clip(body.checkedAt, 64);
   const status = body.status === 'VERIFIED' ? 'VERIFIED' : 'NEEDS_REVIEW';
-  const providerLabel = clip(body.providerLabel || body.searchProviderLabel, 120);
-  const preliminaryPosition = clip(body.preliminaryPosition, 8000);
+  const providerLabel = clip(body.providerLabel || body.searchProviderLabel, 200);
+  const preliminaryPosition = clip(body.preliminaryPosition, 100000);
   const warnings = Array.isArray(body.warnings)
-    ? body.warnings.slice(0, 30).map((w) => clip(w, 500))
+    ? body.warnings.slice(0, 50).map((w) => clip(w, 4000))
     : [];
 
   if (!marketplace || !clauseNumber || !situation) {
@@ -199,13 +199,13 @@ app.post('/api/generate-pdf', async (req, res) => {
   }
 
   const demands = Array.isArray(body.demands)
-    ? body.demands.slice(0, 20).map((d) => clip(d, 500))
+    ? body.demands.slice(0, 40).map((d) => clip(d, 4000))
     : [];
   const usedSources = Array.isArray(body.usedSources || body.sources)
-    ? (body.usedSources || body.sources).slice(0, 20).map((s) => ({
-        title: clip(s?.title, 200),
-        url: clip(s?.url, 500),
-        quote: clip(s?.quote, 1000),
+    ? (body.usedSources || body.sources).slice(0, 40).map((s) => ({
+        title: clip(s?.title, 500),
+        url: clip(s?.url, 2000),
+        quote: clip(s?.quote, 4000),
       }))
     : [];
 
@@ -226,12 +226,14 @@ app.post('/api/generate-pdf', async (req, res) => {
       warnings,
     });
 
+    res.status(200);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
       'attachment; filename="neo-lex-claim.pdf"'
     );
-    res.send(pdf);
+    res.setHeader('Content-Length', String(pdf.length));
+    res.end(pdf);
   } catch (err) {
     err.code = err.code || 'PDF';
     const { status: code, error } = publicError(err);
@@ -247,7 +249,7 @@ app.use((err, _req, res, next) => {
   }
   if (err?.type === 'entity.too.large') {
     return res.status(413).json({
-      error: 'Тело запроса слишком большое',
+      error: 'Тело запроса слишком большое. Сократите текст и повторите.',
     });
   }
   if (res.headersSent) return next(err);
