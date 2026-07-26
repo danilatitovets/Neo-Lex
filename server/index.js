@@ -5,12 +5,17 @@ import { config } from './config.js';
 import { handleChatRequest } from './chat.js';
 import { handleChatPdf } from './chat-pdf.js';
 import { deleteSession, getSession } from './sessions.js';
+import {
+  getDefaultSystemPrompt,
+  handlePlaygroundChat,
+  listPlaygroundModels,
+} from './playground.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, '..', 'public');
 const app = express();
 
-app.use(express.json({ limit: '256kb' }));
+app.use(express.json({ limit: '512kb' }));
 app.use(express.static(publicDir));
 
 function logServerError(err) {
@@ -40,11 +45,11 @@ function publicError(err) {
     },
     SEARCH_AUTH: {
       status: 502,
-      error: 'Не удалось проверить актуальные источники',
+      error: 'Не удалось выполнить веб-поиск',
     },
     SEARCH_PROVIDER: {
       status: 502,
-      error: 'Не удалось проверить актуальные источники',
+      error: 'Не удалось выполнить веб-поиск',
     },
     SEARCH_TIMEOUT: {
       status: 504,
@@ -52,7 +57,7 @@ function publicError(err) {
     },
     CHAT: {
       status: 502,
-      error: 'Сервис консультации временно недоступен',
+      error: 'Сервис модели временно недоступен',
     },
     PDF: {
       status: 500,
@@ -70,12 +75,45 @@ function publicError(err) {
   }
   return {
     status: 500,
-    error: 'Сервис консультации временно недоступен',
+    error: 'Сервис модели временно недоступен',
   };
 }
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
+});
+
+app.get('/api/playground/models', (_req, res) => {
+  res.json(listPlaygroundModels());
+});
+
+app.get('/api/playground/defaults', (_req, res) => {
+  const catalog = listPlaygroundModels();
+  res.json({
+    systemPrompt: getDefaultSystemPrompt(),
+    ...catalog.defaults,
+    defaultModel: catalog.defaultModel,
+  });
+});
+
+app.post('/api/playground/chat', async (req, res) => {
+  try {
+    await handlePlaygroundChat(req, res);
+  } catch (err) {
+    if (res.headersSent) {
+      try {
+        res.write(
+          `event: error\ndata: ${JSON.stringify({ message: publicError(err).error })}\n\n`
+        );
+        res.end();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    const { status, error } = publicError(err);
+    res.status(status).json({ error });
+  }
 });
 
 app.post('/api/chat', async (req, res) => {

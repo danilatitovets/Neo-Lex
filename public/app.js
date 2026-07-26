@@ -1,228 +1,49 @@
-const shellEl = document.getElementById('shell');
-const heroEl = document.getElementById('hero');
 const chatEl = document.getElementById('chat');
 const form = document.getElementById('chat-form');
 const input = document.getElementById('message');
 const sendBtn = document.getElementById('send-btn');
-const pdfCta = document.getElementById('pdf-cta');
-const clearBtn = document.getElementById('clear-btn');
+const typingEl = document.getElementById('typing');
+const typingLabel = document.getElementById('typing-label');
 const errorEl = document.getElementById('form-error');
+const systemPromptEl = document.getElementById('system-prompt');
+const promptCountEl = document.getElementById('prompt-count');
+const modelEl = document.getElementById('model');
+const temperatureEl = document.getElementById('temperature');
+const tempValueEl = document.getElementById('temp-value');
+const maxTokensEl = document.getElementById('max-tokens');
+const webSearchEl = document.getElementById('web-search');
+const clearChatBtn = document.getElementById('clear-chat');
+const resetSettingsBtn = document.getElementById('reset-settings');
+const resetPromptBtn = document.getElementById('reset-prompt');
+const settingsEl = document.getElementById('settings');
+const settingsToggle = document.getElementById('settings-toggle');
 
-const SESSION_KEY = 'neo-lex-session-id';
-const COMPOSER_MAX = 200;
+const LS = {
+  prompt: 'neo-lex-pg-system-prompt',
+  model: 'neo-lex-pg-model',
+  temperature: 'neo-lex-pg-temperature',
+  maxTokens: 'neo-lex-pg-max-tokens',
+  webSearch: 'neo-lex-pg-web-search',
+  messages: 'neo-lex-pg-messages',
+};
 
-let sessionId = localStorage.getItem(SESSION_KEY) || '';
+let defaults = {
+  systemPrompt: '',
+  defaultModel: 'openai/gpt-4o-mini',
+  temperature: 0,
+  maxTokens: 350,
+  webSearch: false,
+  maxSystemChars: 20000,
+  maxMessageChars: 4000,
+};
+
+let messages = [];
 let busy = false;
-let hasAssistant = false;
-let started = false;
-let typingTurnEl = null;
-let typingStatusEl = null;
+let models = [];
 
 function showError(message) {
   errorEl.hidden = !message;
   errorEl.textContent = message || '';
-}
-
-function setPdfEnabled(enabled) {
-  const on = Boolean(enabled);
-  pdfCta.disabled = !on;
-  pdfCta.hidden = !hasAssistant;
-}
-
-function ensureTypingTurn() {
-  if (typingTurnEl && chatEl.contains(typingTurnEl)) return;
-  typingTurnEl = document.createElement('div');
-  typingTurnEl.className = 'typing-turn';
-  typingTurnEl.setAttribute('aria-live', 'polite');
-  typingTurnEl.innerHTML =
-    '<div class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></div>' +
-    '<span class="typing-status"></span>';
-  typingStatusEl = typingTurnEl.querySelector('.typing-status');
-  chatEl.appendChild(typingTurnEl);
-}
-
-function setTyping(visible, status = '') {
-  if (!visible) {
-    typingTurnEl?.remove();
-    typingTurnEl = null;
-    typingStatusEl = null;
-    return;
-  }
-  ensureTypingTurn();
-  if (typingStatusEl) typingStatusEl.textContent = status || '';
-  scrollToBottom();
-}
-
-function setBusy(state) {
-  busy = state;
-  sendBtn.disabled = state;
-  input.disabled = state;
-  if (!state) setTyping(false);
-  setPdfEnabled(!state && hasAssistant);
-}
-
-function scrollToBottom() {
-  requestAnimationFrame(() => {
-    chatEl.scrollTop = chatEl.scrollHeight;
-  });
-}
-
-function growInput() {
-  input.style.height = 'auto';
-  const next = Math.min(Math.max(input.scrollHeight, 24), COMPOSER_MAX);
-  input.style.height = `${next}px`;
-}
-
-function setEmptyState(empty) {
-  started = !empty;
-  shellEl.classList.toggle('is-chatting', !empty);
-  heroEl.hidden = !empty;
-  chatEl.hidden = empty;
-  if (empty) {
-    chatEl.innerHTML = '';
-    typingTurnEl = null;
-    typingStatusEl = null;
-  }
-}
-
-function escapeHtml(text) {
-  return String(text || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function formatAssistantHtml(raw) {
-  let text = escapeHtml(raw);
-
-  // fenced code leftovers
-  text = text.replace(/```[\s\S]*?```/g, (block) =>
-    block.replace(/```/g, '').trim()
-  );
-
-  // bold / italic markdown -> real emphasis
-  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
-  text = text.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
-
-  // strip leftover heading markers
-  text = text.replace(/^#{1,6}\s+/gm, '');
-
-  const lines = text.split('\n');
-  const parts = [];
-  let listType = null;
-  let listItems = [];
-
-  const flushList = () => {
-    if (!listType) return;
-    const tag = listType;
-    parts.push(`<${tag}>${listItems.join('')}</${tag}>`);
-    listType = null;
-    listItems = [];
-  };
-
-  for (const line of lines) {
-    const bullet = line.match(/^\s*[-•]\s+(.+)$/);
-    const numbered = line.match(/^\s*\d+[.)]\s+(.+)$/);
-    if (bullet) {
-      if (listType && listType !== 'ul') flushList();
-      listType = 'ul';
-      listItems.push(`<li>${bullet[1]}</li>`);
-      continue;
-    }
-    if (numbered) {
-      if (listType && listType !== 'ol') flushList();
-      listType = 'ol';
-      listItems.push(`<li>${numbered[1]}</li>`);
-      continue;
-    }
-    flushList();
-    if (!line.trim()) {
-      parts.push('<div class="msg-gap"></div>');
-    } else {
-      parts.push(`<p>${line}</p>`);
-    }
-  }
-  flushList();
-
-  return parts.join('');
-}
-
-function setMessageContent(el, role, content, { asHtml = false } = {}) {
-  if (role === 'assistant' || asHtml) {
-    el.dataset.raw = content;
-    el.innerHTML = formatAssistantHtml(content);
-  } else {
-    el.textContent = content;
-  }
-}
-
-function addMessage(role, content) {
-  const turn = document.createElement('article');
-  turn.className = `turn ${role}`;
-
-  const roleEl = document.createElement('p');
-  roleEl.className = 'turn-role';
-  roleEl.textContent = role === 'user' ? 'Вы' : 'Neo-Lex';
-
-  const message = document.createElement('div');
-  message.className = `message ${role}`;
-  setMessageContent(message, role, content);
-
-  turn.appendChild(roleEl);
-  turn.appendChild(message);
-  chatEl.appendChild(turn);
-  scrollToBottom();
-  return message;
-}
-
-function addMeta({ sources, warnings }) {
-  if ((!sources || !sources.length) && (!warnings || !warnings.length)) return;
-  const wrap = document.createElement('div');
-  wrap.className = 'meta-block';
-
-  if (sources?.length) {
-    const list = document.createElement('ul');
-    list.className = 'sources';
-    for (const source of sources) {
-      const li = document.createElement('li');
-      const a = document.createElement('a');
-      a.href = source.url;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.textContent = source.title || source.url;
-      li.appendChild(a);
-      list.appendChild(li);
-    }
-    wrap.appendChild(list);
-  }
-
-  if (warnings?.length) {
-    const list = document.createElement('ul');
-    list.className = 'warnings';
-    for (const warning of warnings) {
-      const li = document.createElement('li');
-      li.textContent = warning;
-      list.appendChild(li);
-    }
-    wrap.appendChild(list);
-  }
-
-  chatEl.appendChild(wrap);
-  scrollToBottom();
-}
-
-function updatePdfVisibility() {
-  setPdfEnabled(!busy && hasAssistant);
-}
-
-function resetChatView() {
-  setEmptyState(true);
-  hasAssistant = false;
-  updatePdfVisibility();
-  showError('');
 }
 
 function userFacingError(err, fallback) {
@@ -234,7 +55,7 @@ function userFacingError(err, fallback) {
     lower.includes('networkerror') ||
     lower.includes('load failed')
   ) {
-    return 'Не удалось подключиться к серверу';
+    return 'Соединение было прервано';
   }
   if (/^[a-z][a-z0-9 _.-]*$/i.test(raw) && !/[а-яё]/i.test(raw)) {
     return fallback;
@@ -242,49 +63,151 @@ function userFacingError(err, fallback) {
   return raw || fallback;
 }
 
-async function clearSession() {
-  if (sessionId) {
-    try {
-      await fetch(`/api/chat/${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
-    } catch {
-      /* ignore */
-    }
+function setBusy(state) {
+  busy = state;
+  sendBtn.disabled = state;
+  input.disabled = state;
+  typingEl.hidden = !state;
+  if (!state) typingLabel.textContent = 'Генерирую ответ…';
+}
+
+function growInput() {
+  input.style.height = 'auto';
+  input.style.height = `${Math.min(Math.max(input.scrollHeight, 44), 160)}px`;
+}
+
+function updatePromptCount() {
+  promptCountEl.textContent = `${systemPromptEl.value.length} / ${defaults.maxSystemChars}`;
+}
+
+function syncTempLabel() {
+  tempValueEl.textContent = Number(temperatureEl.value).toFixed(1);
+}
+
+function saveSettings() {
+  localStorage.setItem(LS.prompt, systemPromptEl.value);
+  localStorage.setItem(LS.model, modelEl.value);
+  localStorage.setItem(LS.temperature, temperatureEl.value);
+  localStorage.setItem(LS.maxTokens, maxTokensEl.value);
+  localStorage.setItem(LS.webSearch, webSearchEl.checked ? '1' : '0');
+}
+
+function saveMessages() {
+  localStorage.setItem(LS.messages, JSON.stringify(messages.slice(-40)));
+}
+
+function renderChat() {
+  chatEl.innerHTML = '';
+  if (!messages.length) {
+    const empty = document.createElement('p');
+    empty.className = 'empty';
+    empty.textContent =
+      'Измените System Prompt и параметры слева, затем отправьте тестовое сообщение.';
+    chatEl.appendChild(empty);
+    return;
   }
-  sessionId = '';
-  localStorage.removeItem(SESSION_KEY);
-  resetChatView();
-  input.focus();
+
+  for (const msg of messages) {
+    const turn = document.createElement('article');
+    turn.className = `turn ${msg.role}`;
+    const role = document.createElement('p');
+    role.className = 'turn-role';
+    role.textContent = msg.role === 'user' ? 'Вы' : 'Ассистент';
+    const body = document.createElement('div');
+    body.className = 'message';
+    body.textContent = msg.content;
+    turn.appendChild(role);
+    turn.appendChild(body);
+
+    if ((msg.sources && msg.sources.length) || (msg.warnings && msg.warnings.length)) {
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      for (const source of msg.sources || []) {
+        const a = document.createElement('a');
+        a.href = source.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = source.title || source.url;
+        meta.appendChild(a);
+      }
+      for (const warning of msg.warnings || []) {
+        const w = document.createElement('div');
+        w.className = 'warn';
+        w.textContent = warning;
+        meta.appendChild(w);
+      }
+      turn.appendChild(meta);
+    }
+
+    chatEl.appendChild(turn);
+  }
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+function getSettingsPayload() {
+  const temperature = Number(temperatureEl.value);
+  const maxTokens = Number(maxTokensEl.value);
+  return {
+    systemPrompt: systemPromptEl.value,
+    model: modelEl.value,
+    temperature,
+    maxTokens,
+    webSearch: Boolean(webSearchEl.checked),
+  };
+}
+
+function validateBeforeSend(text) {
+  if (!modelEl.value) return 'Выберите модель';
+  if (!text) return 'Введите сообщение';
+  if (text.length > defaults.maxMessageChars) return 'Сообщение слишком длинное';
+  if (systemPromptEl.value.length > defaults.maxSystemChars) {
+    return 'System Prompt слишком длинный';
+  }
+  const temperature = Number(temperatureEl.value);
+  if (!Number.isFinite(temperature) || temperature < 0 || temperature > 1) {
+    return 'Некорректное значение Temperature';
+  }
+  const maxTokens = Number(maxTokensEl.value);
+  if (!Number.isInteger(maxTokens) || maxTokens < 50 || maxTokens > 4000) {
+    return 'Некорректное значение Max Tokens';
+  }
+  return '';
 }
 
 async function sendMessage(text) {
   showError('');
-  setBusy(true);
-
-  if (!started) {
-    setEmptyState(false);
+  const validationError = validateBeforeSend(text);
+  if (validationError) {
+    showError(validationError);
+    return;
   }
 
-  addMessage('user', text);
-  setTyping(true);
+  messages.push({ role: 'user', content: text });
+  const assistant = { role: 'assistant', content: '', sources: [], warnings: [] };
+  messages.push(assistant);
+  saveMessages();
+  renderChat();
   input.value = '';
   growInput();
+  setBusy(true);
 
-  let assistantEl = null;
-  let sources = [];
-  let warnings = [];
+  const assistantEl = chatEl.querySelector('.turn.assistant:last-of-type .message');
 
   try {
-    const response = await fetch('/api/chat', {
+    const response = await fetch('/api/playground/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sessionId: sessionId || undefined,
-        message: text,
+        ...getSettingsPayload(),
+        messages: messages
+          .slice(0, -1)
+          .filter((m) => m.role === 'user' || m.role === 'assistant')
+          .map((m) => ({ role: m.role, content: m.content })),
       }),
     });
 
     if (!response.ok || !response.body) {
-      let message = 'Сервис консультации временно недоступен';
+      let message = 'Сервис модели временно недоступен';
       try {
         const data = await response.json();
         if (data?.error) message = data.error;
@@ -303,10 +226,10 @@ async function sendMessage(text) {
       const { value, done } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-      const chunks = buffer.split('\n');
-      buffer = chunks.pop() || '';
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-      for (const line of chunks) {
+      for (const line of lines) {
         const trimmed = line.trimEnd();
         if (!trimmed) continue;
         if (trimmed.startsWith('event:')) {
@@ -314,77 +237,108 @@ async function sendMessage(text) {
           continue;
         }
         if (!trimmed.startsWith('data:')) continue;
-        const dataRaw = trimmed.slice(5).trim();
         let data = {};
         try {
-          data = JSON.parse(dataRaw);
+          data = JSON.parse(trimmed.slice(5).trim());
         } catch {
           continue;
         }
 
-        if (eventName === 'session' && data.sessionId) {
-          sessionId = data.sessionId;
-          localStorage.setItem(SESSION_KEY, sessionId);
-        } else if (eventName === 'status' && data.message) {
-          setTyping(true, data.message);
+        if (eventName === 'status' && data.message) {
+          typingLabel.textContent = data.message;
+          typingEl.hidden = false;
         } else if (eventName === 'delta' && data.content) {
-          if (!assistantEl) {
-            setTyping(false);
-            assistantEl = addMessage('assistant', '');
-            assistantEl.dataset.raw = '';
-          }
-          assistantEl.dataset.raw = `${assistantEl.dataset.raw || ''}${data.content}`;
-          setMessageContent(assistantEl, 'assistant', assistantEl.dataset.raw);
-          scrollToBottom();
+          typingLabel.textContent = 'Генерирую ответ…';
+          assistant.content += data.content;
+          if (assistantEl) assistantEl.textContent = assistant.content;
+          chatEl.scrollTop = chatEl.scrollHeight;
         } else if (eventName === 'sources') {
-          sources = data.sources || [];
+          assistant.sources = data.sources || [];
         } else if (eventName === 'warning') {
-          warnings = data.warnings || [];
+          assistant.warnings = data.warnings || [];
         } else if (eventName === 'error') {
-          throw new Error(data.message || 'Сервис консультации временно недоступен');
-        } else if (eventName === 'done') {
-          hasAssistant = true;
-          updatePdfVisibility();
+          throw new Error(data.message || 'Сервис модели временно недоступен');
         }
       }
     }
 
-    if (!assistantEl || !String(assistantEl.dataset.raw || assistantEl.textContent || '').trim()) {
+    if (!assistant.content.trim()) {
       throw new Error('Ответ модели не удалось обработать');
     }
 
-    addMeta({ sources, warnings });
+    saveMessages();
+    renderChat();
   } catch (err) {
-    if (assistantEl && !String(assistantEl.dataset.raw || assistantEl.textContent || '').trim()) {
-      assistantEl.closest('.turn')?.remove();
+    if (!assistant.content.trim()) {
+      messages.pop();
+      if (messages.length && messages[messages.length - 1].role === 'user') {
+        messages.pop();
+      }
+      saveMessages();
+      renderChat();
     }
-    if (!chatEl.querySelector('.turn')) {
-      setEmptyState(true);
-    }
-    if (/сессия завершилась/i.test(String(err.message || ''))) {
-      sessionId = '';
-      localStorage.removeItem(SESSION_KEY);
-    }
-    showError(userFacingError(err, 'Сервис консультации временно недоступен'));
+    showError(userFacingError(err, 'Сервис модели временно недоступен'));
   } finally {
     setBusy(false);
     input.focus();
   }
 }
 
+function fillModels(list, selected) {
+  modelEl.innerHTML = '';
+  for (const item of list) {
+    const opt = document.createElement('option');
+    opt.value = item.id;
+    opt.textContent = `${item.label} (${item.id})`;
+    modelEl.appendChild(opt);
+  }
+  if (selected && list.some((m) => m.id === selected)) {
+    modelEl.value = selected;
+  } else if (list.length) {
+    modelEl.value = defaults.defaultModel || list[0].id;
+  }
+}
+
+function applyDefaultsToForm() {
+  systemPromptEl.value = defaults.systemPrompt || '';
+  temperatureEl.value = String(defaults.temperature ?? 0);
+  maxTokensEl.value = String(defaults.maxTokens ?? 350);
+  webSearchEl.checked = Boolean(defaults.webSearch);
+  fillModels(models, defaults.defaultModel);
+  syncTempLabel();
+  updatePromptCount();
+  saveSettings();
+}
+
+function loadFromStorage() {
+  const prompt = localStorage.getItem(LS.prompt);
+  const model = localStorage.getItem(LS.model);
+  const temperature = localStorage.getItem(LS.temperature);
+  const maxTokens = localStorage.getItem(LS.maxTokens);
+  const webSearch = localStorage.getItem(LS.webSearch);
+  const storedMessages = localStorage.getItem(LS.messages);
+
+  systemPromptEl.value = prompt != null ? prompt : defaults.systemPrompt || '';
+  fillModels(models, model || defaults.defaultModel);
+  temperatureEl.value = temperature != null ? temperature : String(defaults.temperature ?? 0);
+  maxTokensEl.value = maxTokens != null ? maxTokens : String(defaults.maxTokens ?? 350);
+  webSearchEl.checked = webSearch === '1';
+  syncTempLabel();
+  updatePromptCount();
+
+  try {
+    messages = storedMessages ? JSON.parse(storedMessages) : [];
+    if (!Array.isArray(messages)) messages = [];
+  } catch {
+    messages = [];
+  }
+  renderChat();
+}
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (busy) return;
-  const text = input.value.trim();
-  if (!text) {
-    showError('Введите сообщение');
-    return;
-  }
-  if (text.length > 4000) {
-    showError('Сообщение слишком длинное');
-    return;
-  }
-  await sendMessage(text);
+  await sendMessage(input.value.trim());
 });
 
 input.addEventListener('input', growInput);
@@ -395,64 +349,68 @@ input.addEventListener('keydown', (event) => {
   }
 });
 
-clearBtn.addEventListener('click', async () => {
+systemPromptEl.addEventListener('input', () => {
+  updatePromptCount();
+  saveSettings();
+});
+modelEl.addEventListener('change', saveSettings);
+temperatureEl.addEventListener('input', () => {
+  syncTempLabel();
+  saveSettings();
+});
+maxTokensEl.addEventListener('change', saveSettings);
+webSearchEl.addEventListener('change', saveSettings);
+
+clearChatBtn.addEventListener('click', () => {
   if (busy) return;
-  await clearSession();
+  messages = [];
+  saveMessages();
+  renderChat();
+  showError('');
 });
 
-async function downloadPdf() {
-  if (!sessionId || busy || !hasAssistant) return;
+resetPromptBtn.addEventListener('click', () => {
+  systemPromptEl.value = defaults.systemPrompt || '';
+  updatePromptCount();
+  saveSettings();
+});
+
+resetSettingsBtn.addEventListener('click', () => {
+  if (busy) return;
+  applyDefaultsToForm();
   showError('');
-  setBusy(true);
-  const ctaLabel = pdfCta.querySelector('span');
-  const prevLabel = ctaLabel?.textContent || 'Сформировать PDF-документ на проверку';
-  if (ctaLabel) ctaLabel.textContent = 'Формируем документ…';
+});
 
-  try {
-    const response = await fetch('/api/chat/pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId }),
-    });
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    const isPdf =
-      bytes.length > 4 &&
-      bytes[0] === 0x25 &&
-      bytes[1] === 0x50 &&
-      bytes[2] === 0x44 &&
-      bytes[3] === 0x46;
+settingsToggle.addEventListener('click', () => {
+  const collapsed = settingsEl.classList.toggle('collapsed');
+  settingsToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+});
 
-    if (!response.ok || !isPdf) {
-      let message = 'Не удалось сформировать PDF';
-      try {
-        const data = JSON.parse(new TextDecoder().decode(bytes));
-        if (data?.error) message = data.error;
-      } catch {
-        /* ignore */
-      }
-      throw new Error(message);
-    }
-
-    const blob = new Blob([bytes], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'neo-lex-consultation.pdf';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    showError(userFacingError(err, 'Не удалось сформировать PDF'));
-  } finally {
-    if (ctaLabel) ctaLabel.textContent = prevLabel;
-    setBusy(false);
-    input.focus();
+async function boot() {
+  const [modelsRes, defaultsRes] = await Promise.all([
+    fetch('/api/playground/models'),
+    fetch('/api/playground/defaults'),
+  ]);
+  if (!modelsRes.ok || !defaultsRes.ok) {
+    showError('Не удалось загрузить настройки Playground');
+    return;
   }
+  const modelsData = await modelsRes.json();
+  const defaultsData = await defaultsRes.json();
+  models = modelsData.models || [];
+  defaults = {
+    systemPrompt: defaultsData.systemPrompt || '',
+    defaultModel: defaultsData.defaultModel || modelsData.defaultModel,
+    temperature: defaultsData.temperature ?? 0,
+    maxTokens: defaultsData.maxTokens ?? 350,
+    webSearch: Boolean(defaultsData.webSearch),
+    maxSystemChars: defaultsData.maxSystemChars || 20000,
+    maxMessageChars: defaultsData.maxMessageChars || 4000,
+  };
+  systemPromptEl.maxLength = defaults.maxSystemChars;
+  loadFromStorage();
+  growInput();
+  input.focus();
 }
 
-pdfCta.addEventListener('click', downloadPdf);
-
-resetChatView();
-growInput();
-input.focus();
+boot().catch(() => showError('Не удалось загрузить настройки Playground'));
