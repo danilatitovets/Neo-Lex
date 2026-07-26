@@ -154,15 +154,22 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  width: min(820px, calc(100% - 32px));
+  width: min(920px, calc(100% - 24px));
   margin: 0 auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.chat::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .turn {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-width: min(680px, 100%);
+  max-width: min(860px, 100%);
   width: fit-content;
   position: relative;
 }
@@ -170,12 +177,14 @@ html, body {
 .turn.user {
   align-self: flex-end;
   align-items: flex-end;
+  width: fit-content;
+  max-width: min(860px, 94%);
 }
 
 .turn.assistant {
   align-self: flex-start;
   align-items: flex-start;
-  width: min(680px, 100%);
+  width: min(860px, 100%);
   max-width: 100%;
 }
 
@@ -199,7 +208,7 @@ html, body {
   background: var(--snow);
   border: 1px solid var(--cloud);
   border-radius: 22px;
-  padding: 14px 18px;
+  padding: 16px 20px;
 }
 
 .turn.assistant .turn-bubble {
@@ -296,7 +305,7 @@ html, body {
 }
 
 .typing {
-  width: min(820px, calc(100% - 32px));
+  width: min(920px, calc(100% - 24px));
   margin: 0 auto 8px;
   display: flex;
   align-items: center;
