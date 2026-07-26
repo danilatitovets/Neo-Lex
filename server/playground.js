@@ -91,7 +91,7 @@ function validatePlaygroundBody(body) {
 
   const systemPrompt = String(body?.systemPrompt ?? '');
   if (systemPrompt.length > PLAYGROUND_DEFAULTS.maxSystemChars) {
-    const err = new Error('System Prompt слишком длинный');
+    const err = new Error('Системный промпт слишком длинный');
     err.code = 'VALIDATION';
     throw err;
   }
@@ -110,7 +110,7 @@ function validatePlaygroundBody(body) {
 
   const temperature = Number(body?.temperature);
   if (!Number.isFinite(temperature) || temperature < 0 || temperature > 1) {
-    const err = new Error('Некорректное значение Temperature');
+    const err = new Error('Некорректное значение температуры');
     err.code = 'VALIDATION';
     throw err;
   }
@@ -121,7 +121,7 @@ function validatePlaygroundBody(body) {
     maxTokens < PLAYGROUND_DEFAULTS.minTokens ||
     maxTokens > PLAYGROUND_DEFAULTS.maxTokensLimit
   ) {
-    const err = new Error('Некорректное значение Max Tokens');
+    const err = new Error('Некорректное значение макс. токенов');
     err.code = 'VALIDATION';
     throw err;
   }
