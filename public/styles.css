@@ -17,6 +17,7 @@
   --radius-menu: 16px;
   --radius-pill: 10000px;
   --radius-btn: 14px;
+  --content-w: min(760px, calc(100% - 32px));
 }
 
 * { box-sizing: border-box; }
@@ -166,26 +167,27 @@ body::-webkit-scrollbar,
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 28px 0 16px;
+  padding: 28px 0 8px;
   display: flex;
   flex-direction: column;
   gap: 18px;
-  width: min(920px, calc(100% - 24px));
+  width: var(--content-w);
   margin: 0 auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
 .chat::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
 }
 
 .turn {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-width: min(860px, 100%);
+  max-width: 100%;
   width: fit-content;
   position: relative;
 }
@@ -194,13 +196,13 @@ body::-webkit-scrollbar,
   align-self: flex-end;
   align-items: flex-end;
   width: fit-content;
-  max-width: min(860px, 94%);
+  max-width: 100%;
 }
 
 .turn.assistant {
   align-self: flex-start;
   align-items: flex-start;
-  width: min(860px, 100%);
+  width: 100%;
   max-width: 100%;
 }
 
@@ -321,7 +323,7 @@ body::-webkit-scrollbar,
 }
 
 .typing {
-  width: min(920px, calc(100% - 24px));
+  width: var(--content-w);
   margin: 0 auto 8px;
   display: flex;
   align-items: center;
@@ -330,6 +332,7 @@ body::-webkit-scrollbar,
   font-size: 13px;
   justify-content: flex-start;
   padding-left: 4px;
+  background: transparent;
 }
 
 .dot {
@@ -351,15 +354,21 @@ body::-webkit-scrollbar,
 .dock {
   flex: 0 0 auto;
   z-index: 20;
-  padding: 8px 16px 18px;
+  padding: 0 16px 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  background: transparent;
+  pointer-events: none;
+}
+
+.dock > * {
+  pointer-events: auto;
 }
 
 .composer {
-  width: min(760px, 100%);
+  width: var(--content-w);
   background: var(--snow);
   border: 1px solid var(--cloud);
   border-radius: 28px;
@@ -545,7 +554,7 @@ body::-webkit-scrollbar,
 
 .error {
   margin: 0;
-  width: min(760px, 100%);
+  width: var(--content-w);
   color: var(--danger);
   font-size: 13px;
   font-weight: 500;
@@ -665,8 +674,9 @@ body::-webkit-scrollbar,
   .btn-label { opacity: 1; }
   .main { max-height: calc(100dvh - 60px); }
 
-  .turn, .typing, .composer, .error {
+  .turn, .typing, .composer, .error, .chat {
     width: calc(100% - 24px);
+    max-width: calc(100% - 24px);
   }
 }
 
