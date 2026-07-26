@@ -7,73 +7,146 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/styles.css?v=40" />
+  <link rel="stylesheet" href="/styles.css?v=41" />
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div>
-        <h1>Neo-Lex Playground</h1>
-        <p class="topbar-sub">Текстовая песочница: system prompt, модель и параметры</p>
+  <div class="shell" id="shell">
+    <aside class="rail" aria-label="Действия">
+      <button type="button" id="clear-chat" class="icon-btn" aria-label="Очистить чат" title="Очистить чат">
+        <span class="icon-wrap" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M12 20h9" stroke-linecap="round" />
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke-linejoin="round" />
+          </svg>
+        </span>
+        <span class="btn-label">Очистить</span>
+      </button>
+      <button type="button" id="reset-settings" class="icon-btn" aria-label="Сбросить настройки" title="Сбросить настройки">
+        <span class="icon-wrap" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M3 12a9 9 0 1 0 3-6.7" stroke-linecap="round" />
+            <path d="M3 4v5h5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </span>
+        <span class="btn-label">Сброс</span>
+      </button>
+    </aside>
+
+    <div class="main">
+      <div class="stage">
+        <section id="hero" class="hero" aria-label="Neo-Lex">
+          <p class="hero-badge">Playground</p>
+          <h1 class="hero-title">Neo-Lex</h1>
+          <p class="hero-sub">Тестируйте system prompt, модели и параметры в чистом чате</p>
+        </section>
+        <main id="chat" class="chat" aria-live="polite" hidden></main>
       </div>
-      <div class="topbar-actions">
-        <button type="button" id="reset-settings" class="btn ghost">Сбросить настройки</button>
-        <button type="button" id="clear-chat" class="btn ghost">Очистить чат</button>
+
+      <div id="typing" class="typing" hidden>
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span id="typing-label">Генерирую ответ…</span>
       </div>
-    </header>
 
-    <div class="layout">
-      <aside class="settings" id="settings">
-        <button type="button" class="settings-toggle" id="settings-toggle" aria-expanded="true">
-          Настройки
-        </button>
-
-        <div class="settings-body" id="settings-body">
-          <label class="field">
-            <span class="field-label">System Prompt</span>
-            <textarea id="system-prompt" rows="12" maxlength="20000" spellcheck="false"></textarea>
-            <div class="field-row">
-              <span class="hint" id="prompt-count">0 / 20000</span>
-              <button type="button" id="reset-prompt" class="btn link">Сбросить промпт</button>
-            </div>
-          </label>
-
-          <label class="field">
-            <span class="field-label">Модель</span>
-            <select id="model"></select>
-          </label>
-
-          <label class="field">
-            <span class="field-label">Temperature <strong id="temp-value">0.0</strong></span>
-            <input id="temperature" type="range" min="0" max="1" step="0.1" value="0" />
-          </label>
-
-          <label class="field">
-            <span class="field-label">Max Tokens</span>
-            <input id="max-tokens" type="number" min="50" max="4000" step="1" value="350" />
-          </label>
-
-          <label class="toggle">
-            <input id="web-search" type="checkbox" />
-            <span>Веб-поиск</span>
-          </label>
-        </div>
-      </aside>
-
-      <section class="chat-panel">
-        <div id="chat" class="chat" aria-live="polite"></div>
-        <div id="typing" class="typing" hidden>
-          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-          <span id="typing-label">Генерирую ответ…</span>
-        </div>
+      <footer class="dock">
         <p id="form-error" class="error" hidden></p>
+
         <form id="chat-form" class="composer">
-          <textarea id="message" rows="1" maxlength="4000" placeholder="Введите тестовое сообщение" required></textarea>
-          <button type="submit" id="send-btn" class="btn primary">Отправить</button>
+          <textarea id="message" rows="1" maxlength="4000" placeholder="Опишите ситуацию или тест" required></textarea>
+
+          <div class="composer-bar">
+            <div class="picker-root">
+              <button type="button" id="plus-btn" class="chip-btn plus" aria-label="Параметры" aria-haspopup="menu" aria-expanded="false">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+              </button>
+
+              <div id="main-menu" class="menu" hidden role="menu">
+                <button type="button" class="menu-item" data-action="prompt" role="menuitem">
+                  <span>System Prompt</span>
+                  <span class="chev">›</span>
+                </button>
+                <button type="button" class="menu-item" data-action="models" role="menuitem">
+                  <span>Модель</span>
+                  <span class="chev">›</span>
+                </button>
+                <button type="button" class="menu-item" data-action="temperature" role="menuitem">
+                  <span>Temperature</span>
+                  <span class="chev">›</span>
+                </button>
+                <button type="button" class="menu-item" data-action="tokens" role="menuitem">
+                  <span>Max Tokens</span>
+                  <span class="chev">›</span>
+                </button>
+                <div class="menu-sep"></div>
+                <button type="button" class="menu-item" data-action="search" role="menuitem">
+                  <span>Веб-поиск</span>
+                  <span id="search-check" class="check" hidden>✓</span>
+                </button>
+              </div>
+
+              <div id="models-menu" class="menu submenu" hidden role="menu">
+                <div class="menu-title">Модель</div>
+                <div id="models-list"></div>
+              </div>
+
+              <div id="temp-menu" class="menu submenu" hidden role="menu">
+                <div class="menu-title">Temperature</div>
+                <div class="menu-control">
+                  <input id="temperature" type="range" min="0" max="1" step="0.1" value="0" />
+                  <strong id="temp-value">0.0</strong>
+                </div>
+              </div>
+
+              <div id="tokens-menu" class="menu submenu" hidden role="menu">
+                <div class="menu-title">Max Tokens</div>
+                <div class="menu-control">
+                  <input id="max-tokens" type="number" min="50" max="4000" step="1" value="350" />
+                </div>
+              </div>
+            </div>
+
+            <button type="button" id="model-chip" class="pill" aria-haspopup="menu">
+              <span id="model-chip-label">Модель</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button type="button" id="temp-chip" class="pill">
+              Temp <span id="temp-chip-value">0.0</span>
+            </button>
+            <button type="button" id="search-chip" class="pill">
+              Поиск <span id="search-chip-state">выкл</span>
+            </button>
+
+            <button type="submit" id="send-btn" class="send" aria-label="Отправить">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M12 19V5M5 12l7-7 7 7" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+
+          <select id="model" hidden></select>
+          <input id="web-search" type="checkbox" hidden />
+          <textarea id="system-prompt" hidden maxlength="20000"></textarea>
         </form>
-      </section>
+      </footer>
     </div>
   </div>
-  <script src="/app.js?v=40"></script>
+
+  <div id="prompt-modal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>System Prompt</h2>
+        <button type="button" id="close-prompt" class="icon-x" aria-label="Закрыть">×</button>
+      </div>
+      <textarea id="system-prompt-edit" rows="16" maxlength="20000" spellcheck="false"></textarea>
+      <div class="modal-foot">
+        <span class="hint" id="prompt-count">0 / 20000</span>
+        <div class="modal-actions">
+          <button type="button" id="reset-prompt" class="btn ghost">Сбросить промпт</button>
+          <button type="button" id="save-prompt" class="btn primary">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js?v=41"></script>
 </body>
 </html>

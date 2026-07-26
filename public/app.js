@@ -1,3 +1,5 @@
+const shellEl = document.getElementById('shell');
+const heroEl = document.getElementById('hero');
 const chatEl = document.getElementById('chat');
 const form = document.getElementById('chat-form');
 const input = document.getElementById('message');
@@ -5,18 +7,34 @@ const sendBtn = document.getElementById('send-btn');
 const typingEl = document.getElementById('typing');
 const typingLabel = document.getElementById('typing-label');
 const errorEl = document.getElementById('form-error');
+
 const systemPromptEl = document.getElementById('system-prompt');
+const systemPromptEdit = document.getElementById('system-prompt-edit');
 const promptCountEl = document.getElementById('prompt-count');
 const modelEl = document.getElementById('model');
 const temperatureEl = document.getElementById('temperature');
 const tempValueEl = document.getElementById('temp-value');
+const tempChipValue = document.getElementById('temp-chip-value');
 const maxTokensEl = document.getElementById('max-tokens');
 const webSearchEl = document.getElementById('web-search');
+const searchCheck = document.getElementById('search-check');
+const searchChipState = document.getElementById('search-chip-state');
+const searchChip = document.getElementById('search-chip');
+const modelChip = document.getElementById('model-chip');
+const modelChipLabel = document.getElementById('model-chip-label');
+const tempChip = document.getElementById('temp-chip');
+const plusBtn = document.getElementById('plus-btn');
+const mainMenu = document.getElementById('main-menu');
+const modelsMenu = document.getElementById('models-menu');
+const modelsList = document.getElementById('models-list');
+const tempMenu = document.getElementById('temp-menu');
+const tokensMenu = document.getElementById('tokens-menu');
+const promptModal = document.getElementById('prompt-modal');
+const closePromptBtn = document.getElementById('close-prompt');
+const savePromptBtn = document.getElementById('save-prompt');
+const resetPromptBtn = document.getElementById('reset-prompt');
 const clearChatBtn = document.getElementById('clear-chat');
 const resetSettingsBtn = document.getElementById('reset-settings');
-const resetPromptBtn = document.getElementById('reset-prompt');
-const settingsEl = document.getElementById('settings');
-const settingsToggle = document.getElementById('settings-toggle');
 
 const LS = {
   prompt: 'neo-lex-pg-system-prompt',
@@ -57,9 +75,7 @@ function userFacingError(err, fallback) {
   ) {
     return 'Соединение было прервано';
   }
-  if (/^[a-z][a-z0-9 _.-]*$/i.test(raw) && !/[а-яё]/i.test(raw)) {
-    return fallback;
-  }
+  if (/^[a-z][a-z0-9 _.-]*$/i.test(raw) && !/[а-яё]/i.test(raw)) return fallback;
   return raw || fallback;
 }
 
@@ -73,15 +89,30 @@ function setBusy(state) {
 
 function growInput() {
   input.style.height = 'auto';
-  input.style.height = `${Math.min(Math.max(input.scrollHeight, 44), 160)}px`;
+  input.style.height = `${Math.min(Math.max(input.scrollHeight, 24), 160)}px`;
+}
+
+function syncTemp() {
+  const v = Number(temperatureEl.value).toFixed(1);
+  tempValueEl.textContent = v;
+  tempChipValue.textContent = v;
+}
+
+function syncSearch() {
+  const on = webSearchEl.checked;
+  searchCheck.hidden = !on;
+  searchChipState.textContent = on ? 'вкл' : 'выкл';
+  searchChip.classList.toggle('active', on);
+}
+
+function syncModelChip() {
+  const found = models.find((m) => m.id === modelEl.value);
+  modelChipLabel.textContent = found ? found.label : 'Модель';
+  renderModelsList();
 }
 
 function updatePromptCount() {
-  promptCountEl.textContent = `${systemPromptEl.value.length} / ${defaults.maxSystemChars}`;
-}
-
-function syncTempLabel() {
-  tempValueEl.textContent = Number(temperatureEl.value).toFixed(1);
+  promptCountEl.textContent = `${systemPromptEdit.value.length} / ${defaults.maxSystemChars}`;
 }
 
 function saveSettings() {
@@ -96,29 +127,52 @@ function saveMessages() {
   localStorage.setItem(LS.messages, JSON.stringify(messages.slice(-40)));
 }
 
+function closeMenus() {
+  mainMenu.hidden = true;
+  modelsMenu.hidden = true;
+  tempMenu.hidden = true;
+  tokensMenu.hidden = true;
+  plusBtn.setAttribute('aria-expanded', 'false');
+}
+
+function openMenu(which) {
+  closeMenus();
+  if (which === 'main') {
+    mainMenu.hidden = false;
+    plusBtn.setAttribute('aria-expanded', 'true');
+  } else if (which === 'models') {
+    modelsMenu.hidden = false;
+  } else if (which === 'temperature') {
+    tempMenu.hidden = false;
+  } else if (which === 'tokens') {
+    tokensMenu.hidden = false;
+  }
+}
+
+function setChatting(on) {
+  shellEl.classList.toggle('is-chatting', on);
+  heroEl.hidden = on;
+  chatEl.hidden = !on;
+}
+
 function renderChat() {
   chatEl.innerHTML = '';
   if (!messages.length) {
-    const empty = document.createElement('p');
-    empty.className = 'empty';
-    empty.textContent =
-      'Измените System Prompt и параметры слева, затем отправьте тестовое сообщение.';
-    chatEl.appendChild(empty);
+    setChatting(false);
     return;
   }
-
+  setChatting(true);
   for (const msg of messages) {
     const turn = document.createElement('article');
     turn.className = `turn ${msg.role}`;
     const role = document.createElement('p');
     role.className = 'turn-role';
-    role.textContent = msg.role === 'user' ? 'Вы' : 'Ассистент';
+    role.textContent = msg.role === 'user' ? 'Вы' : 'Neo-Lex';
     const body = document.createElement('div');
     body.className = 'message';
     body.textContent = msg.content;
     turn.appendChild(role);
     turn.appendChild(body);
-
     if ((msg.sources && msg.sources.length) || (msg.warnings && msg.warnings.length)) {
       const meta = document.createElement('div');
       meta.className = 'meta';
@@ -138,20 +192,90 @@ function renderChat() {
       }
       turn.appendChild(meta);
     }
-
     chatEl.appendChild(turn);
   }
   chatEl.scrollTop = chatEl.scrollHeight;
 }
 
+function renderModelsList() {
+  modelsList.innerHTML = '';
+  for (const item of models) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'menu-item';
+    btn.dataset.model = item.id;
+    btn.innerHTML = `<span>${item.label}</span>${
+      item.id === modelEl.value ? '<span class="check">✓</span>' : ''
+    }`;
+    btn.addEventListener('click', () => {
+      modelEl.value = item.id;
+      syncModelChip();
+      saveSettings();
+      closeMenus();
+    });
+    modelsList.appendChild(btn);
+  }
+}
+
+function fillModels(list, selected) {
+  modelEl.innerHTML = '';
+  for (const item of list) {
+    const opt = document.createElement('option');
+    opt.value = item.id;
+    opt.textContent = item.label;
+    modelEl.appendChild(opt);
+  }
+  if (selected && list.some((m) => m.id === selected)) modelEl.value = selected;
+  else if (list.length) modelEl.value = defaults.defaultModel || list[0].id;
+  syncModelChip();
+}
+
+function applyDefaultsToForm() {
+  systemPromptEl.value = defaults.systemPrompt || '';
+  systemPromptEdit.value = systemPromptEl.value;
+  temperatureEl.value = String(defaults.temperature ?? 0);
+  maxTokensEl.value = String(defaults.maxTokens ?? 350);
+  webSearchEl.checked = Boolean(defaults.webSearch);
+  fillModels(models, defaults.defaultModel);
+  syncTemp();
+  syncSearch();
+  updatePromptCount();
+  saveSettings();
+}
+
+function loadFromStorage() {
+  const prompt = localStorage.getItem(LS.prompt);
+  const model = localStorage.getItem(LS.model);
+  const temperature = localStorage.getItem(LS.temperature);
+  const maxTokens = localStorage.getItem(LS.maxTokens);
+  const webSearch = localStorage.getItem(LS.webSearch);
+  const storedMessages = localStorage.getItem(LS.messages);
+
+  systemPromptEl.value = prompt != null ? prompt : defaults.systemPrompt || '';
+  systemPromptEdit.value = systemPromptEl.value;
+  fillModels(models, model || defaults.defaultModel);
+  temperatureEl.value = temperature != null ? temperature : String(defaults.temperature ?? 0);
+  maxTokensEl.value = maxTokens != null ? maxTokens : String(defaults.maxTokens ?? 350);
+  webSearchEl.checked = webSearch === '1';
+  syncTemp();
+  syncSearch();
+  updatePromptCount();
+
+  try {
+    messages = storedMessages ? JSON.parse(storedMessages) : [];
+    if (!Array.isArray(messages)) messages = [];
+  } catch {
+    messages = [];
+  }
+  renderChat();
+}
+
 function getSettingsPayload() {
-  const temperature = Number(temperatureEl.value);
-  const maxTokens = Number(maxTokensEl.value);
   return {
     systemPrompt: systemPromptEl.value,
     model: modelEl.value,
-    temperature,
-    maxTokens,
+    temperature: Number(temperatureEl.value),
+    maxTokens: Number(maxTokensEl.value),
     webSearch: Boolean(webSearchEl.checked),
   };
 }
@@ -160,9 +284,7 @@ function validateBeforeSend(text) {
   if (!modelEl.value) return 'Выберите модель';
   if (!text) return 'Введите сообщение';
   if (text.length > defaults.maxMessageChars) return 'Сообщение слишком длинное';
-  if (systemPromptEl.value.length > defaults.maxSystemChars) {
-    return 'System Prompt слишком длинный';
-  }
+  if (systemPromptEl.value.length > defaults.maxSystemChars) return 'System Prompt слишком длинный';
   const temperature = Number(temperatureEl.value);
   if (!Number.isFinite(temperature) || temperature < 0 || temperature > 1) {
     return 'Некорректное значение Temperature';
@@ -228,7 +350,6 @@ async function sendMessage(text) {
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
-
       for (const line of lines) {
         const trimmed = line.trimEnd();
         if (!trimmed) continue;
@@ -243,7 +364,6 @@ async function sendMessage(text) {
         } catch {
           continue;
         }
-
         if (eventName === 'status' && data.message) {
           typingLabel.textContent = data.message;
           typingEl.hidden = false;
@@ -262,18 +382,13 @@ async function sendMessage(text) {
       }
     }
 
-    if (!assistant.content.trim()) {
-      throw new Error('Ответ модели не удалось обработать');
-    }
-
+    if (!assistant.content.trim()) throw new Error('Ответ модели не удалось обработать');
     saveMessages();
     renderChat();
   } catch (err) {
     if (!assistant.content.trim()) {
       messages.pop();
-      if (messages.length && messages[messages.length - 1].role === 'user') {
-        messages.pop();
-      }
+      if (messages.length && messages[messages.length - 1].role === 'user') messages.pop();
       saveMessages();
       renderChat();
     }
@@ -284,60 +399,97 @@ async function sendMessage(text) {
   }
 }
 
-function fillModels(list, selected) {
-  modelEl.innerHTML = '';
-  for (const item of list) {
-    const opt = document.createElement('option');
-    opt.value = item.id;
-    opt.textContent = `${item.label} (${item.id})`;
-    modelEl.appendChild(opt);
-  }
-  if (selected && list.some((m) => m.id === selected)) {
-    modelEl.value = selected;
-  } else if (list.length) {
-    modelEl.value = defaults.defaultModel || list[0].id;
-  }
-}
+plusBtn.addEventListener('click', (event) => {
+  event.stopPropagation();
+  if (!mainMenu.hidden) closeMenus();
+  else openMenu('main');
+});
 
-function applyDefaultsToForm() {
-  systemPromptEl.value = defaults.systemPrompt || '';
-  temperatureEl.value = String(defaults.temperature ?? 0);
-  maxTokensEl.value = String(defaults.maxTokens ?? 350);
-  webSearchEl.checked = Boolean(defaults.webSearch);
-  fillModels(models, defaults.defaultModel);
-  syncTempLabel();
+mainMenu.addEventListener('click', (event) => {
+  const item = event.target.closest('[data-action]');
+  if (!item) return;
+  const action = item.dataset.action;
+  if (action === 'prompt') {
+    closeMenus();
+    systemPromptEdit.value = systemPromptEl.value;
+    updatePromptCount();
+    promptModal.hidden = false;
+  } else if (action === 'models') openMenu('models');
+  else if (action === 'temperature') openMenu('temperature');
+  else if (action === 'tokens') openMenu('tokens');
+  else if (action === 'search') {
+    webSearchEl.checked = !webSearchEl.checked;
+    syncSearch();
+    saveSettings();
+  }
+});
+
+modelChip.addEventListener('click', (event) => {
+  event.stopPropagation();
+  openMenu('models');
+});
+
+tempChip.addEventListener('click', (event) => {
+  event.stopPropagation();
+  openMenu('temperature');
+});
+
+searchChip.addEventListener('click', () => {
+  webSearchEl.checked = !webSearchEl.checked;
+  syncSearch();
+  saveSettings();
+});
+
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.picker-root') && !event.target.closest('.pill')) {
+    closeMenus();
+  }
+});
+
+temperatureEl.addEventListener('input', () => {
+  syncTemp();
+  saveSettings();
+});
+maxTokensEl.addEventListener('change', saveSettings);
+
+closePromptBtn.addEventListener('click', () => {
+  promptModal.hidden = true;
+});
+
+savePromptBtn.addEventListener('click', () => {
+  systemPromptEl.value = systemPromptEdit.value;
   updatePromptCount();
   saveSettings();
-}
+  promptModal.hidden = true;
+});
 
-function loadFromStorage() {
-  const prompt = localStorage.getItem(LS.prompt);
-  const model = localStorage.getItem(LS.model);
-  const temperature = localStorage.getItem(LS.temperature);
-  const maxTokens = localStorage.getItem(LS.maxTokens);
-  const webSearch = localStorage.getItem(LS.webSearch);
-  const storedMessages = localStorage.getItem(LS.messages);
-
-  systemPromptEl.value = prompt != null ? prompt : defaults.systemPrompt || '';
-  fillModels(models, model || defaults.defaultModel);
-  temperatureEl.value = temperature != null ? temperature : String(defaults.temperature ?? 0);
-  maxTokensEl.value = maxTokens != null ? maxTokens : String(defaults.maxTokens ?? 350);
-  webSearchEl.checked = webSearch === '1';
-  syncTempLabel();
+resetPromptBtn.addEventListener('click', () => {
+  systemPromptEdit.value = defaults.systemPrompt || '';
   updatePromptCount();
+});
 
-  try {
-    messages = storedMessages ? JSON.parse(storedMessages) : [];
-    if (!Array.isArray(messages)) messages = [];
-  } catch {
-    messages = [];
-  }
+systemPromptEdit.addEventListener('input', updatePromptCount);
+
+clearChatBtn.addEventListener('click', () => {
+  if (busy) return;
+  messages = [];
+  saveMessages();
   renderChat();
-}
+  showError('');
+  closeMenus();
+});
+
+resetSettingsBtn.addEventListener('click', () => {
+  if (busy) return;
+  applyDefaultsToForm();
+  showError('');
+  closeMenus();
+});
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (busy) return;
+  closeMenus();
   await sendMessage(input.value.trim());
 });
 
@@ -347,43 +499,6 @@ input.addEventListener('keydown', (event) => {
     event.preventDefault();
     form.requestSubmit();
   }
-});
-
-systemPromptEl.addEventListener('input', () => {
-  updatePromptCount();
-  saveSettings();
-});
-modelEl.addEventListener('change', saveSettings);
-temperatureEl.addEventListener('input', () => {
-  syncTempLabel();
-  saveSettings();
-});
-maxTokensEl.addEventListener('change', saveSettings);
-webSearchEl.addEventListener('change', saveSettings);
-
-clearChatBtn.addEventListener('click', () => {
-  if (busy) return;
-  messages = [];
-  saveMessages();
-  renderChat();
-  showError('');
-});
-
-resetPromptBtn.addEventListener('click', () => {
-  systemPromptEl.value = defaults.systemPrompt || '';
-  updatePromptCount();
-  saveSettings();
-});
-
-resetSettingsBtn.addEventListener('click', () => {
-  if (busy) return;
-  applyDefaultsToForm();
-  showError('');
-});
-
-settingsToggle.addEventListener('click', () => {
-  const collapsed = settingsEl.classList.toggle('collapsed');
-  settingsToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
 });
 
 async function boot() {
@@ -407,7 +522,6 @@ async function boot() {
     maxSystemChars: defaultsData.maxSystemChars || 20000,
     maxMessageChars: defaultsData.maxMessageChars || 4000,
   };
-  systemPromptEl.maxLength = defaults.maxSystemChars;
   loadFromStorage();
   growInput();
   input.focus();
