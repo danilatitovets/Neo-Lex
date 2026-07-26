@@ -51,7 +51,7 @@ let defaults = {
   temperature: 0,
   maxTokens: 350,
   webSearch: false,
-  maxSystemChars: 20000,
+  maxSystemChars: 2500,
   maxMessageChars: 4000,
 };
 
@@ -111,8 +111,16 @@ function syncModelChip() {
   renderModelsList();
 }
 
+function clampPrompt(text) {
+  const limit = defaults.maxSystemChars || 2500;
+  return String(text || '').slice(0, limit);
+}
+
 function updatePromptCount() {
-  promptCountEl.textContent = `${systemPromptEdit.value.length} / ${defaults.maxSystemChars}`;
+  const limit = defaults.maxSystemChars || 2500;
+  const len = systemPromptEdit.value.length;
+  promptCountEl.textContent = `${len} / ${limit}`;
+  promptCountEl.classList.toggle('is-limit', len >= limit);
 }
 
 function saveSettings() {
@@ -231,7 +239,7 @@ function fillModels(list, selected) {
 }
 
 function applyDefaultsToForm() {
-  systemPromptEl.value = defaults.systemPrompt || '';
+  systemPromptEl.value = clampPrompt(defaults.systemPrompt || '');
   systemPromptEdit.value = systemPromptEl.value;
   temperatureEl.value = String(defaults.temperature ?? 0);
   maxTokensEl.value = String(defaults.maxTokens ?? 350);
@@ -251,7 +259,9 @@ function loadFromStorage() {
   const webSearch = localStorage.getItem(LS.webSearch);
   const storedMessages = localStorage.getItem(LS.messages);
 
-  systemPromptEl.value = prompt != null ? prompt : defaults.systemPrompt || '';
+  systemPromptEl.value = clampPrompt(
+    prompt != null ? prompt : defaults.systemPrompt || ''
+  );
   systemPromptEdit.value = systemPromptEl.value;
   fillModels(models, model || defaults.defaultModel);
   temperatureEl.value = temperature != null ? temperature : String(defaults.temperature ?? 0);
@@ -411,9 +421,11 @@ mainMenu.addEventListener('click', (event) => {
   const action = item.dataset.action;
   if (action === 'prompt') {
     closeMenus();
-    systemPromptEdit.value = systemPromptEl.value;
+    systemPromptEdit.value = clampPrompt(systemPromptEl.value);
+    systemPromptEdit.maxLength = defaults.maxSystemChars || 2500;
     updatePromptCount();
     promptModal.hidden = false;
+    systemPromptEdit.focus();
   } else if (action === 'models') openMenu('models');
   else if (action === 'temperature') openMenu('temperature');
   else if (action === 'tokens') openMenu('tokens');
@@ -457,18 +469,24 @@ closePromptBtn.addEventListener('click', () => {
 });
 
 savePromptBtn.addEventListener('click', () => {
-  systemPromptEl.value = systemPromptEdit.value;
+  systemPromptEl.value = clampPrompt(systemPromptEdit.value);
+  systemPromptEdit.value = systemPromptEl.value;
   updatePromptCount();
   saveSettings();
   promptModal.hidden = true;
 });
 
 resetPromptBtn.addEventListener('click', () => {
-  systemPromptEdit.value = defaults.systemPrompt || '';
+  systemPromptEdit.value = clampPrompt(defaults.systemPrompt || '');
   updatePromptCount();
 });
 
-systemPromptEdit.addEventListener('input', updatePromptCount);
+systemPromptEdit.addEventListener('input', () => {
+  if (systemPromptEdit.value.length > (defaults.maxSystemChars || 2500)) {
+    systemPromptEdit.value = clampPrompt(systemPromptEdit.value);
+  }
+  updatePromptCount();
+});
 
 clearChatBtn.addEventListener('click', () => {
   if (busy) return;
@@ -519,9 +537,11 @@ async function boot() {
     temperature: defaultsData.temperature ?? 0,
     maxTokens: defaultsData.maxTokens ?? 350,
     webSearch: Boolean(defaultsData.webSearch),
-    maxSystemChars: defaultsData.maxSystemChars || 20000,
+    maxSystemChars: defaultsData.maxSystemChars || 2500,
     maxMessageChars: defaultsData.maxMessageChars || 4000,
   };
+  systemPromptEl.maxLength = defaults.maxSystemChars;
+  systemPromptEdit.maxLength = defaults.maxSystemChars;
   loadFromStorage();
   growInput();
   input.focus();

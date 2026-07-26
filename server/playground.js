@@ -36,7 +36,7 @@ export const PLAYGROUND_DEFAULTS = {
   webSearch: false,
   presencePenalty: 0,
   frequencyPenalty: 0,
-  maxSystemChars: 20000,
+  maxSystemChars: 2500,
   maxMessageChars: 4000,
   maxMessages: 20,
   maxHistoryChars: 40000,

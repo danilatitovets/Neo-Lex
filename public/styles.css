@@ -440,13 +440,17 @@ html, body {
   inset: 0;
   z-index: 80;
   background: rgba(9, 9, 11, 0.28);
-  display: grid;
-  place-items: center;
-  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: auto;
 }
 
 .modal-card {
-  width: min(720px, 100%);
+  width: min(560px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  margin: auto;
   background: var(--snow);
   border: 1px solid var(--cloud);
   border-radius: 20px;
@@ -454,8 +458,9 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: min(80vh, 720px);
+  max-height: min(78vh, 640px);
   box-shadow: none;
+  overflow: hidden;
 }
 
 .modal-head,
@@ -464,6 +469,11 @@ html, body {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
+}
+
+.modal-foot {
+  flex-wrap: wrap;
 }
 
 .modal-head h2 {
@@ -483,9 +493,10 @@ html, body {
 
 #system-prompt-edit {
   width: 100%;
-  flex: 1;
-  min-height: 280px;
-  resize: vertical;
+  flex: 1 1 auto;
+  min-height: 220px;
+  max-height: none;
+  resize: none;
   border: 1px solid var(--cloud);
   border-radius: 12px;
   padding: 12px;
@@ -494,6 +505,12 @@ html, body {
   line-height: 1.45;
   background: var(--subtle);
   box-shadow: none;
+  overflow-y: auto;
+}
+
+.hint.is-limit {
+  color: var(--ember);
+  font-weight: 600;
 }
 
 .modal-actions { display: flex; gap: 8px; }
