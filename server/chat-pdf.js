@@ -200,3 +200,52 @@ export async function handleChatPdf(sessionId) {
   const pdf = await generateConsultationPdf(structured);
   return { pdf, structured };
 }
+
+const MAX_PDF_USER_CHARS = 4000;
+const MAX_PDF_ASSISTANT_CHARS = 12000;
+
+export async function handlePlaygroundPdf(body) {
+  const userContent = String(body?.userContent || '').trim().slice(0, MAX_PDF_USER_CHARS);
+  const assistantContent = String(body?.assistantContent || '')
+    .trim()
+    .slice(0, MAX_PDF_ASSISTANT_CHARS);
+  const rawSources = Array.isArray(body?.sources) ? body.sources : [];
+
+  if (assistantContent.length < 40) {
+    const err = new Error(
+      'Для формирования документа пока недостаточно данных в ответе'
+    );
+    err.code = 'VALIDATION';
+    throw err;
+  }
+
+  const sources = [];
+  const seen = new Set();
+  for (const item of rawSources.slice(0, 20)) {
+    const url = String(item?.url || '').trim();
+    if (!isHttpUrl(url) || seen.has(url)) continue;
+    seen.add(url);
+    sources.push({
+      title: String(item?.title || '').trim().slice(0, 200),
+      url,
+    });
+  }
+
+  const session = {
+    messages: [
+      ...(userContent
+        ? [{ role: 'user', content: userContent, sources: [], warnings: [] }]
+        : []),
+      {
+        role: 'assistant',
+        content: assistantContent,
+        sources,
+        warnings: [],
+      },
+    ],
+  };
+
+  const structured = await structureSession(session);
+  const pdf = await generateConsultationPdf(structured);
+  return { pdf, structured };
+}

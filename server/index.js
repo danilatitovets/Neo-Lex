@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { handleChatRequest } from './chat.js';
-import { handleChatPdf } from './chat-pdf.js';
+import { handleChatPdf, handlePlaygroundPdf } from './chat-pdf.js';
 import { deleteSession, getSession } from './sessions.js';
 import {
   getDefaultSystemPrompt,
@@ -178,6 +178,29 @@ app.post('/api/chat/pdf', async (req, res) => {
 
   try {
     const { pdf } = await handleChatPdf(sessionId);
+    res.status(200);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="neo-lex-consultation.pdf"'
+    );
+    res.setHeader('Content-Length', String(pdf.length));
+    res.end(pdf);
+  } catch (err) {
+    const { status, error } = publicError(err);
+    res.status(status).json({ error });
+  }
+});
+
+app.post('/api/playground/pdf', async (req, res) => {
+  if (req.body?.html || req.body?.filePath || req.body?.path || req.body?.url) {
+    return res.status(400).json({
+      error: 'Произвольный HTML, URL и пути не принимаются',
+    });
+  }
+
+  try {
+    const { pdf } = await handlePlaygroundPdf(req.body || {});
     res.status(200);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(

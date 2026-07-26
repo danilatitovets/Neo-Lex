@@ -163,6 +163,86 @@ function setChatting(on) {
   chatEl.hidden = !on;
 }
 
+function iconCopy() {
+  return `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10" stroke-linecap="round"/></svg>`;
+}
+
+function iconPdf() {
+  return `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6" stroke-linejoin="round"/><path d="M8 13h8M8 17h5" stroke-linecap="round"/></svg>`;
+}
+
+async function copyAssistantText(text, button) {
+  try {
+    await navigator.clipboard.writeText(text);
+    const prev = button.innerHTML;
+    button.innerHTML = `${iconCopy()}<span>Скопировано</span>`;
+    setTimeout(() => {
+      button.innerHTML = prev;
+    }, 1200);
+  } catch {
+    showError('Не удалось скопировать текст');
+  }
+}
+
+function findPreviousUserContent(index) {
+  for (let i = index - 1; i >= 0; i -= 1) {
+    if (messages[i]?.role === 'user') return messages[i].content || '';
+  }
+  return '';
+}
+
+async function downloadAssistantPdf(index, turnEl, button) {
+  const msg = messages[index];
+  if (!msg || msg.role !== 'assistant' || !msg.content.trim()) return;
+
+  const label = button.querySelector('span');
+  const prevLabel = label?.textContent || 'PDF';
+  turnEl.classList.add('is-busy');
+  button.disabled = true;
+  if (label) label.textContent = 'Формирую…';
+  showError('');
+
+  try {
+    const response = await fetch('/api/playground/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userContent: findPreviousUserContent(index),
+        assistantContent: msg.content,
+        sources: msg.sources || [],
+      }),
+    });
+
+    const type = response.headers.get('content-type') || '';
+    if (!response.ok || !type.includes('application/pdf')) {
+      let message = 'Не удалось сформировать PDF';
+      try {
+        const data = await response.json();
+        if (data?.error) message = data.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'neo-lex-consultation.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    showError(userFacingError(err, 'Не удалось сформировать PDF'));
+  } finally {
+    turnEl.classList.remove('is-busy');
+    button.disabled = false;
+    if (label) label.textContent = prevLabel;
+  }
+}
+
 function renderChat() {
   chatEl.innerHTML = '';
   if (!messages.length) {
@@ -170,17 +250,22 @@ function renderChat() {
     return;
   }
   setChatting(true);
-  for (const msg of messages) {
+  messages.forEach((msg, index) => {
     const turn = document.createElement('article');
     turn.className = `turn ${msg.role}`;
+
     const role = document.createElement('p');
     role.className = 'turn-role';
     role.textContent = msg.role === 'user' ? 'Вы' : 'Neo-Lex';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'turn-bubble';
+
     const body = document.createElement('div');
     body.className = 'message';
     body.textContent = msg.content;
-    turn.appendChild(role);
-    turn.appendChild(body);
+    bubble.appendChild(body);
+
     if ((msg.sources && msg.sources.length) || (msg.warnings && msg.warnings.length)) {
       const meta = document.createElement('div');
       meta.className = 'meta';
@@ -198,10 +283,35 @@ function renderChat() {
         w.textContent = warning;
         meta.appendChild(w);
       }
-      turn.appendChild(meta);
+      bubble.appendChild(meta);
     }
+
+    turn.appendChild(role);
+    turn.appendChild(bubble);
+
+    if (msg.role === 'assistant' && msg.content.trim()) {
+      const actions = document.createElement('div');
+      actions.className = 'turn-actions';
+
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'action-btn';
+      copyBtn.innerHTML = `${iconCopy()}<span>Копировать</span>`;
+      copyBtn.addEventListener('click', () => copyAssistantText(msg.content, copyBtn));
+
+      const pdfBtn = document.createElement('button');
+      pdfBtn.type = 'button';
+      pdfBtn.className = 'action-btn';
+      pdfBtn.innerHTML = `${iconPdf()}<span>Сформировать PDF</span>`;
+      pdfBtn.addEventListener('click', () => downloadAssistantPdf(index, turn, pdfBtn));
+
+      actions.appendChild(copyBtn);
+      actions.appendChild(pdfBtn);
+      turn.appendChild(actions);
+    }
+
     chatEl.appendChild(turn);
-  }
+  });
   chatEl.scrollTop = chatEl.scrollHeight;
 }
 

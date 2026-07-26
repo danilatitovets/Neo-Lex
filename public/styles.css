@@ -153,27 +153,61 @@ html, body {
   padding: 28px 0 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
+  width: min(820px, calc(100% - 32px));
+  margin: 0 auto;
 }
 
 .turn {
-  width: min(760px, calc(100% - 48px));
-  margin: 0 auto;
-  background: var(--snow);
-  border-radius: var(--radius-card);
-  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: min(680px, 100%);
+  width: fit-content;
+  position: relative;
+}
+
+.turn.user {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.turn.assistant {
+  align-self: flex-start;
+  align-items: flex-start;
+  width: min(680px, 100%);
+  max-width: 100%;
 }
 
 .turn-role {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--fog);
+  padding: 0 4px;
 }
 
 .turn.assistant .turn-role { color: var(--ember); }
+
+.turn-bubble {
+  max-width: 100%;
+}
+
+.turn.user .turn-bubble {
+  background: var(--snow);
+  border: 1px solid var(--cloud);
+  border-radius: 22px;
+  padding: 14px 18px;
+}
+
+.turn.assistant .turn-bubble {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 2px 4px;
+}
 
 .message {
   margin: 0;
@@ -182,6 +216,7 @@ html, body {
   word-break: break-word;
   font-size: 15px;
   line-height: 1.65;
+  color: var(--obsidian);
 }
 
 .meta {
@@ -206,14 +241,70 @@ html, body {
   font-size: 12px;
 }
 
+.turn-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.turn.assistant:hover .turn-actions,
+.turn.assistant:focus-within .turn-actions,
+.turn.assistant.is-busy .turn-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .turn.assistant .turn-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--cloud);
+  border-radius: 10px;
+  background: var(--snow);
+  color: var(--graphite);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.action-btn:hover {
+  background: var(--paper);
+  color: var(--obsidian);
+}
+
+.action-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.action-btn svg {
+  flex: 0 0 auto;
+}
+
 .typing {
-  width: min(760px, calc(100% - 48px));
+  width: min(820px, calc(100% - 32px));
   margin: 0 auto 8px;
   display: flex;
   align-items: center;
   gap: 8px;
   color: var(--fog);
   font-size: 13px;
+  justify-content: flex-start;
+  padding-left: 4px;
 }
 
 .dot {
