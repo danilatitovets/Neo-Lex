@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Neo-Lex Playground</title>
+  <title>Neo-Lex — песочница</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/styles.css?v=41" />
+  <link rel="stylesheet" href="/styles.css?v=42" />
 </head>
 <body>
   <div class="shell" id="shell">
@@ -35,9 +35,9 @@
     <div class="main">
       <div class="stage">
         <section id="hero" class="hero" aria-label="Neo-Lex">
-          <p class="hero-badge">Playground</p>
+          <p class="hero-badge">Песочница</p>
           <h1 class="hero-title">Neo-Lex</h1>
-          <p class="hero-sub">Тестируйте system prompt, модели и параметры в чистом чате</p>
+          <p class="hero-sub">Проверяйте системный промпт, модели и параметры в чистом чате</p>
         </section>
         <main id="chat" class="chat" aria-live="polite" hidden></main>
       </div>
@@ -61,7 +61,7 @@
 
               <div id="main-menu" class="menu" hidden role="menu">
                 <button type="button" class="menu-item" data-action="prompt" role="menuitem">
-                  <span>System Prompt</span>
+                  <span>Системный промпт</span>
                   <span class="chev">›</span>
                 </button>
                 <button type="button" class="menu-item" data-action="models" role="menuitem">
@@ -69,11 +69,11 @@
                   <span class="chev">›</span>
                 </button>
                 <button type="button" class="menu-item" data-action="temperature" role="menuitem">
-                  <span>Temperature</span>
+                  <span>Температура</span>
                   <span class="chev">›</span>
                 </button>
                 <button type="button" class="menu-item" data-action="tokens" role="menuitem">
-                  <span>Max Tokens</span>
+                  <span>Макс. токенов</span>
                   <span class="chev">›</span>
                 </button>
                 <div class="menu-sep"></div>
@@ -89,7 +89,7 @@
               </div>
 
               <div id="temp-menu" class="menu submenu" hidden role="menu">
-                <div class="menu-title">Temperature</div>
+                <div class="menu-title">Температура</div>
                 <div class="menu-control">
                   <input id="temperature" type="range" min="0" max="1" step="0.1" value="0" />
                   <strong id="temp-value">0.0</strong>
@@ -97,7 +97,7 @@
               </div>
 
               <div id="tokens-menu" class="menu submenu" hidden role="menu">
-                <div class="menu-title">Max Tokens</div>
+                <div class="menu-title">Макс. токенов</div>
                 <div class="menu-control">
                   <input id="max-tokens" type="number" min="50" max="4000" step="1" value="350" />
                 </div>
@@ -109,10 +109,10 @@
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
             <button type="button" id="temp-chip" class="pill">
-              Temp <span id="temp-chip-value">0.0</span>
+              Темп. <span id="temp-chip-value">0.0</span>
             </button>
             <button type="button" id="search-chip" class="pill">
-              Поиск <span id="search-chip-state">выкл</span>
+              Поиск: <span id="search-chip-state">выкл</span>
             </button>
 
             <button type="submit" id="send-btn" class="send" aria-label="Отправить">
@@ -133,7 +133,7 @@
   <div id="prompt-modal" class="modal" hidden>
     <div class="modal-card">
       <div class="modal-head">
-        <h2>System Prompt</h2>
+        <h2>Системный промпт</h2>
         <button type="button" id="close-prompt" class="icon-x" aria-label="Закрыть">×</button>
       </div>
       <textarea id="system-prompt-edit" rows="16" maxlength="20000" spellcheck="false"></textarea>
@@ -147,6 +147,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=41"></script>
+  <script src="/app.js?v=42"></script>
 </body>
 </html>

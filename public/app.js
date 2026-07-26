@@ -284,14 +284,14 @@ function validateBeforeSend(text) {
   if (!modelEl.value) return 'Выберите модель';
   if (!text) return 'Введите сообщение';
   if (text.length > defaults.maxMessageChars) return 'Сообщение слишком длинное';
-  if (systemPromptEl.value.length > defaults.maxSystemChars) return 'System Prompt слишком длинный';
+  if (systemPromptEl.value.length > defaults.maxSystemChars) return 'Системный промпт слишком длинный';
   const temperature = Number(temperatureEl.value);
   if (!Number.isFinite(temperature) || temperature < 0 || temperature > 1) {
-    return 'Некорректное значение Temperature';
+    return 'Некорректное значение температуры';
   }
   const maxTokens = Number(maxTokensEl.value);
   if (!Number.isInteger(maxTokens) || maxTokens < 50 || maxTokens > 4000) {
-    return 'Некорректное значение Max Tokens';
+    return 'Некорректное значение макс. токенов';
   }
   return '';
 }
@@ -507,7 +507,7 @@ async function boot() {
     fetch('/api/playground/defaults'),
   ]);
   if (!modelsRes.ok || !defaultsRes.ok) {
-    showError('Не удалось загрузить настройки Playground');
+    showError('Не удалось загрузить настройки песочницы');
     return;
   }
   const modelsData = await modelsRes.json();
@@ -527,4 +527,4 @@ async function boot() {
   input.focus();
 }
 
-boot().catch(() => showError('Не удалось загрузить настройки Playground'));
+boot().catch(() => showError('Не удалось загрузить настройки песочницы'));
