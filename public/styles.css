@@ -510,7 +510,7 @@ body::-webkit-scrollbar,
   border: 1px solid var(--cloud);
   border-radius: var(--radius-menu);
   padding: 8px;
-  z-index: 120;
+  z-index: 1200;
   box-shadow: none;
 }
 

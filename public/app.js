@@ -149,7 +149,14 @@ function closeMenus() {
   }
 }
 
+function ensureMenuOnBody(menu) {
+  if (menu.parentElement !== document.body) {
+    document.body.appendChild(menu);
+  }
+}
+
 function placeMenu(menu, anchor) {
+  ensureMenuOnBody(menu);
   const rect = anchor.getBoundingClientRect();
   const menuWidth = Math.min(280, window.innerWidth - 24);
   let left = rect.left;
@@ -162,7 +169,7 @@ function placeMenu(menu, anchor) {
   menu.style.top = 'auto';
   menu.style.bottom = `${Math.round(window.innerHeight - rect.top + 8)}px`;
   menu.style.minWidth = `${menuWidth}px`;
-  menu.style.zIndex = '120';
+  menu.style.zIndex = '1200';
 }
 
 function openMenu(which, anchor) {
