@@ -18,6 +18,8 @@
   --radius-pill: 10000px;
   --radius-btn: 14px;
   --content-w: min(760px, calc(100% - 32px));
+  --page-pad: 16px;
+  --dock-pad-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
 * { box-sizing: border-box; }
@@ -167,11 +169,12 @@ body::-webkit-scrollbar,
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 28px 0 8px;
+  padding: 28px 0 20px;
   display: flex;
   flex-direction: column;
   gap: 18px;
   width: var(--content-w);
+  max-width: 100%;
   margin: 0 auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -190,6 +193,7 @@ body::-webkit-scrollbar,
   max-width: 100%;
   width: fit-content;
   position: relative;
+  min-width: 0;
 }
 
 .turn.user {
@@ -220,6 +224,7 @@ body::-webkit-scrollbar,
 
 .turn-bubble {
   max-width: 100%;
+  min-width: 0;
 }
 
 .turn.user .turn-bubble {
@@ -233,7 +238,7 @@ body::-webkit-scrollbar,
   background: transparent;
   border: 0;
   border-radius: 0;
-  padding: 2px 4px;
+  padding: 2px 2px;
 }
 
 .message {
@@ -244,6 +249,7 @@ body::-webkit-scrollbar,
   font-size: 15px;
   line-height: 1.65;
   color: var(--obsidian);
+  max-width: 100%;
 }
 
 .meta {
@@ -354,7 +360,8 @@ body::-webkit-scrollbar,
 .dock {
   flex: 0 0 auto;
   z-index: 20;
-  padding: 0 16px 18px;
+  width: 100%;
+  padding: 8px var(--page-pad) var(--dock-pad-bottom);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -369,14 +376,16 @@ body::-webkit-scrollbar,
 
 .composer {
   width: var(--content-w);
+  max-width: 100%;
   background: var(--snow);
   border: 1px solid var(--cloud);
   border-radius: 28px;
   padding: 12px 12px 10px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   box-shadow: none;
+  box-sizing: border-box;
 }
 
 .composer textarea {
@@ -400,7 +409,25 @@ body::-webkit-scrollbar,
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
+  width: 100%;
+}
+
+.composer-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.composer-tools::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .picker-root { position: relative; }
@@ -440,6 +467,16 @@ body::-webkit-scrollbar,
   color: var(--graphite);
   font-size: 13px;
   font-weight: 500;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.pill > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .pill.active {
@@ -448,7 +485,8 @@ body::-webkit-scrollbar,
 }
 
 .send {
-  margin-left: auto;
+  margin-left: 0;
+  flex: 0 0 auto;
   width: 40px;
   height: 40px;
   border-radius: 999px;
@@ -657,26 +695,143 @@ body::-webkit-scrollbar,
 [hidden] { display: none !important; }
 
 @media (max-width: 720px) {
+  :root {
+    --content-w: calc(100% - 24px);
+    --page-pad: 12px;
+    --dock-pad-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
   .shell,
   .shell:has(.rail:hover),
   .shell:has(.rail:focus-within) {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100dvh;
+    max-height: 100dvh;
   }
 
   .rail {
     height: auto;
     flex-direction: row;
-    position: sticky;
-    top: 0;
+    position: relative;
+    top: auto;
+    flex: 0 0 auto;
+    padding: 10px 12px;
+    gap: 4px;
   }
 
   .btn-label { opacity: 1; }
-  .main { max-height: calc(100dvh - 60px); }
 
-  .turn, .typing, .composer, .error, .chat {
-    width: calc(100% - 24px);
-    max-width: calc(100% - 24px);
+  .main {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .stage {
+    min-height: 0;
+  }
+
+  .hero {
+    padding: 24px 16px;
+  }
+
+  .hero-title {
+    font-size: clamp(36px, 10vw, 48px);
+  }
+
+  .chat {
+    width: var(--content-w);
+    max-width: var(--content-w);
+    padding: 16px 0 12px;
+    gap: 14px;
+  }
+
+  .typing,
+  .error,
+  .composer {
+    width: var(--content-w);
+    max-width: var(--content-w);
+  }
+
+  .turn,
+  .turn.user,
+  .turn.assistant {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .turn.user {
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .turn.user .turn-bubble {
+    padding: 12px 14px;
+    border-radius: 20px;
+  }
+
+  .turn.assistant .turn-bubble {
+    padding: 0;
+  }
+
+  .message {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .dock {
+    padding: 6px var(--page-pad) var(--dock-pad-bottom);
+  }
+
+  .composer {
+    border-radius: 24px;
+    padding: 12px 12px 10px 14px;
+    gap: 8px;
+  }
+
+  .composer-bar {
+    gap: 6px;
+  }
+
+  .composer-tools {
+    gap: 6px;
+  }
+
+  /* как GPT: в нижней строке только + / модель / отправка */
+  #temp-chip,
+  #search-chip {
+    display: none;
+  }
+
+  .pill {
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+    max-width: min(160px, 46vw);
+  }
+
+  #model-chip {
+    max-width: min(180px, 52vw);
+  }
+
+  .chip-btn.plus,
+  .send {
+    width: 36px;
+    height: 36px;
+  }
+
+  .menu,
+  .menu.submenu {
+    min-width: min(260px, calc(100vw - 48px));
+    max-width: calc(100vw - 48px);
+  }
+
+  .turn-actions {
+    opacity: 1;
+    pointer-events: auto;
+    flex-wrap: wrap;
   }
 }
 
