@@ -425,14 +425,26 @@ body::-webkit-scrollbar,
   gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: visible;
 }
 
-.composer-tools::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
+.menu {
+  position: fixed;
+  left: 12px;
+  bottom: 120px;
+  min-width: 248px;
+  max-width: min(320px, calc(100vw - 24px));
+  background: var(--snow);
+  color: var(--graphite);
+  border: 1px solid var(--cloud);
+  border-radius: var(--radius-menu);
+  padding: 8px;
+  z-index: 120;
+  box-shadow: none;
+}
+
+.menu.submenu {
+  min-width: 260px;
 }
 
 .picker-root { position: relative; }
@@ -507,21 +519,21 @@ body::-webkit-scrollbar,
 }
 
 .menu {
-  position: absolute;
-  left: 0;
-  bottom: calc(100% + 10px);
+  position: fixed;
+  left: 12px;
+  bottom: 120px;
   min-width: 248px;
+  max-width: min(320px, calc(100vw - 24px));
   background: var(--snow);
   color: var(--graphite);
   border: 1px solid var(--cloud);
   border-radius: var(--radius-menu);
   padding: 8px;
-  z-index: 50;
+  z-index: 120;
   box-shadow: none;
 }
 
 .menu.submenu {
-  left: 0;
   min-width: 260px;
 }
 

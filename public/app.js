@@ -141,19 +141,46 @@ function closeMenus() {
   tempMenu.hidden = true;
   tokensMenu.hidden = true;
   plusBtn.setAttribute('aria-expanded', 'false');
+  for (const menu of [mainMenu, modelsMenu, tempMenu, tokensMenu]) {
+    menu.style.left = '';
+    menu.style.right = '';
+    menu.style.top = '';
+    menu.style.bottom = '';
+  }
 }
 
-function openMenu(which) {
+function placeMenu(menu, anchor) {
+  const rect = anchor.getBoundingClientRect();
+  const menuWidth = Math.min(280, window.innerWidth - 24);
+  let left = rect.left;
+  if (left + menuWidth > window.innerWidth - 12) {
+    left = Math.max(12, window.innerWidth - menuWidth - 12);
+  }
+  menu.style.position = 'fixed';
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.right = 'auto';
+  menu.style.top = 'auto';
+  menu.style.bottom = `${Math.round(window.innerHeight - rect.top + 8)}px`;
+  menu.style.minWidth = `${menuWidth}px`;
+  menu.style.zIndex = '120';
+}
+
+function openMenu(which, anchor) {
   closeMenus();
+  const target = anchor || plusBtn;
   if (which === 'main') {
     mainMenu.hidden = false;
     plusBtn.setAttribute('aria-expanded', 'true');
+    placeMenu(mainMenu, target);
   } else if (which === 'models') {
     modelsMenu.hidden = false;
+    placeMenu(modelsMenu, target);
   } else if (which === 'temperature') {
     tempMenu.hidden = false;
+    placeMenu(tempMenu, target);
   } else if (which === 'tokens') {
     tokensMenu.hidden = false;
+    placeMenu(tokensMenu, target);
   }
 }
 
@@ -520,9 +547,10 @@ async function sendMessage(text) {
 }
 
 plusBtn.addEventListener('click', (event) => {
+  event.preventDefault();
   event.stopPropagation();
   if (!mainMenu.hidden) closeMenus();
-  else openMenu('main');
+  else openMenu('main', plusBtn);
 });
 
 mainMenu.addEventListener('click', (event) => {
@@ -536,9 +564,9 @@ mainMenu.addEventListener('click', (event) => {
     updatePromptCount();
     promptModal.hidden = false;
     systemPromptEdit.focus();
-  } else if (action === 'models') openMenu('models');
-  else if (action === 'temperature') openMenu('temperature');
-  else if (action === 'tokens') openMenu('tokens');
+  } else if (action === 'models') openMenu('models', plusBtn);
+  else if (action === 'temperature') openMenu('temperature', plusBtn);
+  else if (action === 'tokens') openMenu('tokens', plusBtn);
   else if (action === 'search') {
     webSearchEl.checked = !webSearchEl.checked;
     syncSearch();
@@ -547,25 +575,42 @@ mainMenu.addEventListener('click', (event) => {
 });
 
 modelChip.addEventListener('click', (event) => {
+  event.preventDefault();
   event.stopPropagation();
-  openMenu('models');
+  if (!modelsMenu.hidden) closeMenus();
+  else openMenu('models', modelChip);
 });
 
 tempChip.addEventListener('click', (event) => {
+  event.preventDefault();
   event.stopPropagation();
-  openMenu('temperature');
+  if (!tempMenu.hidden) closeMenus();
+  else openMenu('temperature', tempChip);
 });
 
-searchChip.addEventListener('click', () => {
+searchChip.addEventListener('click', (event) => {
+  event.preventDefault();
+  event.stopPropagation();
   webSearchEl.checked = !webSearchEl.checked;
   syncSearch();
   saveSettings();
 });
 
 document.addEventListener('click', (event) => {
-  if (!event.target.closest('.picker-root') && !event.target.closest('.pill')) {
+  if (
+    !event.target.closest('.picker-root') &&
+    !event.target.closest('.pill') &&
+    !event.target.closest('.menu')
+  ) {
     closeMenus();
   }
+});
+
+window.addEventListener('resize', () => {
+  if (!mainMenu.hidden) placeMenu(mainMenu, plusBtn);
+  else if (!modelsMenu.hidden) placeMenu(modelsMenu, modelChip);
+  else if (!tempMenu.hidden) placeMenu(tempMenu, tempChip);
+  else if (!tokensMenu.hidden) placeMenu(tokensMenu, plusBtn);
 });
 
 temperatureEl.addEventListener('input', () => {
