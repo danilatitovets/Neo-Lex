@@ -708,17 +708,37 @@ body::-webkit-scrollbar,
     max-height: 100dvh;
   }
 
+  /* компактный топ как у GPT: только иконки, без широкой полосы */
   .rail {
     height: auto;
     flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
     position: relative;
     top: auto;
     flex: 0 0 auto;
-    padding: 10px 12px;
-    gap: 4px;
+    width: 100%;
+    padding: 6px 8px;
+    gap: 2px;
+    background: transparent;
+    border: 0;
   }
 
-  .btn-label { opacity: 1; }
+  .rail .icon-btn {
+    width: 40px;
+    min-height: 40px;
+    grid-template-columns: 40px;
+    border-radius: 12px;
+  }
+
+  .rail .icon-wrap {
+    width: 40px;
+    height: 40px;
+  }
+
+  .rail .btn-label {
+    display: none;
+  }
 
   .main {
     height: auto;
@@ -732,7 +752,7 @@ body::-webkit-scrollbar,
   }
 
   .hero {
-    padding: 24px 16px;
+    padding: 12px 16px 24px;
   }
 
   .hero-title {
@@ -742,7 +762,7 @@ body::-webkit-scrollbar,
   .chat {
     width: var(--content-w);
     max-width: var(--content-w);
-    padding: 16px 0 12px;
+    padding: 12px 0 12px;
     gap: 14px;
   }
 
