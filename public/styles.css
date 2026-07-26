@@ -400,7 +400,7 @@ body::-webkit-scrollbar,
   resize: none;
   background: transparent;
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.45;
   min-height: 24px;
   max-height: 160px;
@@ -662,8 +662,8 @@ body::-webkit-scrollbar,
   border-radius: 12px;
   padding: 12px;
   font: inherit;
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 16px;
+  line-height: 1.5;
   background: var(--subtle);
   box-shadow: none;
   overflow-y: auto;
@@ -850,6 +850,44 @@ body::-webkit-scrollbar,
     opacity: 1;
     pointer-events: auto;
     flex-wrap: wrap;
+  }
+
+  /* iOS не зумит поля при фокусе, если font-size >= 16px */
+  .composer textarea,
+  #system-prompt-edit,
+  .menu-control input[type="number"] {
+    font-size: 16px;
+  }
+
+  .modal {
+    align-items: flex-end;
+    padding: 0;
+    background: rgba(9, 9, 11, 0.4);
+  }
+
+  .modal-card {
+    width: 100%;
+    max-width: 100%;
+    max-height: min(92dvh, 100%);
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  #system-prompt-edit {
+    min-height: 180px;
+  }
+
+  .modal-foot {
+    gap: 8px;
+  }
+
+  .modal-actions {
+    width: 100%;
+  }
+
+  .modal-actions .btn {
+    flex: 1 1 auto;
   }
 }
 
